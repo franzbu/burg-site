@@ -1,179 +1,234 @@
 ---
-// Server-side block
+// Burg | Live-Betriebszentrum Frontend
+const acceptLang = Astro.request.headers.get('accept-language') || 'de';
+const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
+const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+
+const trans = {
+    de: {
+        title: "Burg | Klimadaten", head: "Burg - Klimadaten", live: "Live-Betriebszentrum",
+        init: "INITIALISIERE...", loading: "LÄDT...", outdoor: "☀️ Außentemperatur",
+        sysAvg: "System-Mittel", brightness: "Helligkeit", facades: "🏛️ Hausfassaden",
+        north: "Nord-Fassade", south: "Süd-Fassade", east: "Ost-Fassade", west: "West-Fassade",
+        greenhouse: "🌿 Gewächshaus", watchdog: "Heizungs-Watchdog", heatingEnergy: "Heizenergie",
+        rainToday: "🌧️ Niederschlag (Heute)", rainYesterday: "Regen Gestern", meteoStatus: "Meteo-Status",
+        sunshineToday: "⏱️ Sonnenscheindauer (Heute)", sensorType: "Sensor-Typ", optical: "Optisch",
+        threshold: "Schwelle", stateVectors: "⚡ Sensor-Zustandsvektoren", acuteRain: "Akuter Niederschlag",
+        stormDetect: "Sturmwahrnehmung", windSpeed: "💨 Windgeschwindigkeit", humidity: "Luftfeuchtigkeit",
+        online: "WETTERSTATION ONLINE", error: "KONNEKTIVITÄTSFEHLER",
+        storm: "STURM", rain: "REGEN", clear: "KLAR", yes: "JA", no: "NEIN", on: "EIN", off: "AUS",
+        entrance: "🚪 Eingang", panorama: "⛰️ Panorama"
+    },
+    en: {
+        title: "Burg | Climate Data", head: "Burg - Climate Data", live: "Live Operations Center",
+        init: "INITIALIZING...", loading: "LOADING...", outdoor: "☀️ Outdoor Temperature",
+        sysAvg: "System Average", brightness: "Brightness", facades: "🏛️ House Facades",
+        north: "North Facade", south: "South Facade", east: "East Facade", west: "West Facade",
+        greenhouse: "🌿 Greenhouse", watchdog: "Heating Watchdog", heatingEnergy: "Heating Energy",
+        rainToday: "🌧️ Precipitation (Today)", rainYesterday: "Rain Yesterday", meteoStatus: "Meteo Status",
+        sunshineToday: "⏱️ Sunshine Duration (Today)", sensorType: "Sensor Type", optical: "Optical",
+        threshold: "Threshold", stateVectors: "⚡ Sensor State Vectors", acuteRain: "Acute Rain",
+        stormDetect: "Storm Detection", windSpeed: "💨 Wind Speed", humidity: "Humidity",
+        online: "WEATHER STATION ONLINE", error: "CONNECTION ERROR",
+        storm: "STORM", rain: "RAIN", clear: "CLEAR", yes: "YES", no: "NO", on: "ON", off: "OFF",
+        entrance: "🚪 Entrance", panorama: "⛰️ Panorama"
+    },
+    it: {
+        title: "Burg | Dati Climatici", head: "Burg - Dati Climatici", live: "Centro Operativo Live",
+        init: "INIZIALIZZAZIONE...", loading: "CARICAMENTO...", outdoor: "☀️ Temperatura Esterna",
+        sysAvg: "Media di Sistema", brightness: "Luminosità", facades: "🏛️ Facciate",
+        north: "Facciata Nord", south: "Facciata Sud", east: "Facciata Est", west: "Facciata Ovest",
+        greenhouse: "🌿 Serra", watchdog: "Watchdog Riscaldamento", heatingEnergy: "Energia Riscaldamento",
+        rainToday: "🌧️ Precipitazioni (Oggi)", rainYesterday: "Pioggia Ieri", meteoStatus: "Stato Meteo",
+        sunshineToday: "⏱️ Durata Sole (Oggi)", sensorType: "Tipo Sensore", optical: "Ottico",
+        threshold: "Soglia", stateVectors: "⚡ Vettori di Stato", acuteRain: "Pioggia in Corso",
+        stormDetect: "Rilevamento Tempesta", windSpeed: "💨 Velocità Vento", humidity: "Umidità",
+        online: "STAZIONE METEO ONLINE", error: "ERRORE DI CONNESSIONE",
+        storm: "TEMPESTA", rain: "PIOGGIA", clear: "SERENO", yes: "SÌ", no: "NO", on: "ON", off: "OFF",
+        entrance: "🚪 Ingresso", panorama: "⛰️ Panorama"
+    }
+};
+const t = trans[lang];
 ---
 <!DOCTYPE html>
-<html lang="de">
+<html lang={lang}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Burg | Wetterstation & Klima</title>
+    <title>{t.title}</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><rect width='24' height='24' fill='black'/><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#030303">
 </head>
 <body>
+
+    <div id="weather-bg" style="background-image: url('/background.webp');"></div>
 
     <div class="container">
         <header>
             <div class="brand">
-                <h1>Burg - Wetterdaten</h1>
-                <p id="system-time">Live-Betriebszentrum</p>
+                <h1>{t.head}</h1>
+                <p id="system-time">{t.live}</p>
             </div>
             <div class="status-badge">
                 <div id="status-indicator" class="status-dot"></div>
-                <span id="status-text">INITIALISIERE KONTEXT</span>
+                <span id="status-text">{t.init}</span>
             </div>
         </header>
-
-        <h2 class="section-title">📊 Kombisensor Wetterstation (HmIP-SWO-PL)</h2>
+        
         <div class="bento-grid">
+            <div class="card col-4 clickable" onclick="openPanoramaStats()">
+                <div class="card-title">{t.panorama}</div>
+                <div id="panorama-container" style="flex: 1; width: 100%; border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; min-height: 120px; position: relative;">
+                    <img id="latest-panorama-img" style="width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0;">
+                    <span id="panorama-loading" style="font-size: 0.7rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; z-index: 1;">{t.loading}</span>
+                </div>
+            </div>
             
-            <div class="card col-4">
-                <div class="card-title">☀️ Außentemperatur</div>
+            <div class="card col-4 clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_temperature')">
+                <div class="card-title">{t.outdoor}</div>
                 <div class="value-large" id="ws-temp">--.-<span class="value-unit">°C</span></div>
                 <div class="sub-metrics">
                     <div>
-                        <div class="sub-label">System-Mittel</div>
+                        <div class="sub-label">{t.sysAvg}</div>
                         <div class="sub-value" id="computed-avg" style="color: var(--accent);">--.- °C</div>
                     </div>
                     <div>
-                        <div class="sub-label">Helligkeit</div>
+                        <div class="sub-label">{t.brightness}</div>
                         <div class="sub-value" id="ws-lux">-- lx</div>
                     </div>
                 </div>
             </div>
 
             <div class="card col-4">
-                <div class="card-title">💨 Windgeschwindigkeit</div>
-                <div class="value-large" id="ws-wind">--.-<span class="value-unit">km/h</span></div>
-                <div class="sub-metrics">
-                    <div>
-                        <div class="sub-label">Windrichtung</div>
-                        <div class="sub-value" id="ws-wind-dir" style="color: var(--accent);">--</div>
+                <div class="card-title">{t.facades}</div>
+                <div style="margin: auto 0; width: 100%;">
+                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_north_temperature')">
+                        <span class="facade-name">{t.north}</span>
+                        <span class="facade-val" id="facade-north">--.-°C</span>
                     </div>
-                    <div>
-                        <div class="sub-label">Luftfeuchte</div>
-                        <div class="sub-value" id="ws-hum">-- %</div>
+                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature')">
+                        <span class="facade-name">{t.south}</span>
+                        <span class="facade-val" id="facade-south">--.-°C</span>
+                    </div>
+                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature')">
+                        <span class="facade-name">{t.east}</span>
+                        <span class="facade-val" id="facade-east">--.-°C</span>
+                    </div>
+                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature')">
+                        <span class="facade-name">{t.west}</span>
+                        <span class="facade-val" id="facade-west">--.-°C</span>
                     </div>
                 </div>
             </div>
 
-            <div class="card col-4">
-                <div class="card-title">🌧️ Niederschlag (Heute)</div>
+            <div class="card col-4" style="background: radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.04), transparent 60%), var(--card-bg); padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+                <div class="clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_garten_temperature')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
+                    <div class="card-title" style="color: var(--success);">{t.greenhouse}</div>
+                    <div class="value-large" id="facade-greenhouse">--.-<span class="value-unit" style="color: var(--success);">°C</span></div>
+                </div>
+                <div class="clickable" onclick="openTempStats('sensor.switching_and_measuring_cable_outdoor_energy_counter')" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
+                    <div class="sub-metrics" style="border-color: rgba(16, 185, 129, 0.1); margin: auto 0; border-top: none; padding-top: 0;">
+                        <div>
+                            <div class="sub-label">{t.watchdog}</div>
+                            <div class="sub-value" id="ws-watchdog" style="color: var(--text-dim);">{t.loading}</div>
+                        </div>
+                        <div>
+                            <div class="sub-label">{t.heatingEnergy}</div>
+                            <div class="sub-value" id="ws-heater-energy">--.- kWh</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card col-4 clickable" onclick="openRainStats()">
+                <div class="card-title">{t.rainToday}</div>
                 <div class="value-large" id="ws-rain-today">--.-<span class="value-unit">mm</span></div>
                 <div class="sub-metrics">
                     <div>
-                        <div class="sub-label">Regen Gestern</div>
+                        <div class="sub-label">{t.rainYesterday}</div>
                         <div class="sub-value" id="ws-rain-yesterday">--.- mm</div>
                     </div>
                     <div>
-                        <div class="sub-label">Meteo-Status</div>
+                        <div class="sub-label">{t.meteoStatus}</div>
                         <div class="sub-value" id="ws-meteo-status">--</div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="bento-grid">
-            <div class="card col-6">
-                <div class="card-title">⏱️ Sonnenscheindauer (Heute)</div>
+            <div class="card col-4 clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_total_sunshine_duration')">
+                <div class="card-title">{t.sunshineToday}</div>
                 <div class="value-large" id="ws-sunshine">--<span class="value-unit">h</span> --<span class="value-unit">m</span></div>
                 <div class="sub-metrics">
                     <div>
-                        <div class="sub-label">Sensor-Typ</div>
-                        <div class="sub-value">Optisch</div>
+                        <div class="sub-label">{t.sensorType}</div>
+                        <div class="sub-value">{t.optical}</div>
                     </div>
                     <div>
-                        <div class="sub-label">Schwelle</div>
+                        <div class="sub-label">{t.threshold}</div>
                         <div class="sub-value">> 120 W/m²</div>
                     </div>
                 </div>
             </div>
 
-            <div class="card col-6">
-                <div class="card-title">⚡ Sensor-Zustandsvektoren</div>
-                <div class="facade-row">
-                    <span class="facade-name">Akuter Niederschlag</span>
-                    <span class="facade-val" id="ws-flag-raining">--</span>
-                </div>
-                <div class="facade-row">
-                    <span class="facade-name">Sturmwahrnehmung</span>
-                    <span class="facade-val" id="ws-flag-storm">--</span>
-                </div>
-            </div>
-        </div>
-
-        <h2 class="section-title">📈 Historische Niederschlagsstatistik (LTS)</h2>
-        <div class="bento-grid">
-            <div class="card col-12">
-                <div class="card-title">📅 Monatliche Niederschlagsverteilung (2026)</div>
-                <div class="history-chart-grid" id="history-chart-container">
+            <div class="card col-4">
+                <div class="card-title">{t.stateVectors}</div>
+                <div style="margin: auto 0; width: 100%;">
+                    <div class="facade-row">
+                        <span class="facade-name">{t.acuteRain}</span>
+                        <span class="facade-val" id="ws-flag-raining">--</span>
                     </div>
-            </div>
-        </div>
-
-        <h2 class="section-title">🧱 Struktur- & Biosphären-Klima</h2>
-        <div class="bento-grid">
-            <div class="card col-6">
-                <div class="card-title">🏛️ Thermische Fassadenvektoren</div>
-                <div class="facade-row">
-                    <span class="facade-name">Nord-Fassade</span>
-                    <span class="facade-val" id="facade-north">--.-°C</span>
-                </div>
-                <div class="facade-row">
-                    <span class="facade-name">Süd-Fassade</span>
-                    <span class="facade-val" id="facade-south">--.-°C</span>
-                </div>
-                <div class="facade-row">
-                    <span class="facade-name">Ost-Fassade</span>
-                    <span class="facade-val" id="facade-east">--.-°C</span>
-                </div>
-                <div class="facade-row">
-                    <span class="facade-name">West-Fassade</span>
-                    <span class="facade-val" id="facade-west">--.-°C</span>
-                </div>
-            </div>
-
-            <div class="card col-6" style="background: radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.04), transparent 60%), var(--card-bg);">
-                <div class="card-title" style="color: var(--success);">🌿 Biosphären-Knoten (Gewächshaus)</div>
-                <div class="value-large" id="facade-greenhouse">--.-<span class="value-unit" style="color: var(--success);">°C</span></div>
-                <div class="sub-metrics" style="border-color: rgba(16, 185, 129, 0.1);">
-                    <div>
-                        <div class="sub-label">Atmosphären-Link</div>
-                        <div class="sub-value" style="color: var(--success);">AKTIV</div>
-                    </div>
-                    <div>
-                        <div class="sub-label">Heizungs-Watchdog</div>
-                        <div class="sub-value" style="color: var(--text-dim);">AUTOMATISCH</div>
+                    <div class="facade-row">
+                        <span class="facade-name">{t.stormDetect}</span>
+                        <span class="facade-val" id="ws-flag-storm">--</span>
                     </div>
                 </div>
             </div>
+
+            <div class="card col-4" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+                <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_wind_speed')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
+                    <div class="card-title">{t.windSpeed}</div>
+                    <div class="value-large" id="ws-wind">--.-<span class="value-unit">km/h</span></div>
+                </div>
+                <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_humidity')" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
+                    <div class="sub-metrics" style="margin: auto 0; border-top: none; padding-top: 0;">
+                        <div>
+                            <div class="sub-label">{t.humidity}</div>
+                            <div class="sub-value" id="ws-hum">-- %</div>
+                        </div>
+                        <div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card col-4 clickable" onclick="openEntranceStats()">
+                <div class="card-title">{t.entrance}</div>
+                <div id="entrance-container" style="flex: 1; width: 100%; border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; min-height: 120px; position: relative;">
+                    <img id="latest-entrance-img" style="width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0;">
+                    <span id="entrance-loading" style="font-size: 0.7rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; z-index: 1;">{t.loading}</span>
+                </div>
+            </div>
+
         </div>
 
         <footer>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">ENG-CORE: V8-ISOLATE // FULL_METEO_DATA_STITCHING</div>
-            <span id="uptime-display" style="margin:0;">SYSTEM_UPTIME: LOADING</span>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; width: 100%; color: black;">burg@gitor.uk</div>
         </footer>
     </div>
 
+    <script is:inline set:html={`const t = ${JSON.stringify(t)};`}></script>
     <script is:inline>
         const statusDot = document.getElementById('status-indicator');
         const statusText = document.getElementById('status-text');
-        const uptimeDisplay = document.getElementById('uptime-display');
-        const chartContainer = document.getElementById('history-chart-container');
+        const weatherBg = document.getElementById('weather-bg');
+        const workerUrl = "https://burg-upload-proxy.csaa6335.workers.dev";
 
-        let isSimulationMode = false;
-
-        document.querySelectorAll('.card').forEach(card => {
-            card.addEventListener('mousemove', e => {
-                const rect = card.getBoundingClientRect();
-                card.style.setProperty('--x', `${e.clientX - rect.left}px`);
-                card.style.setProperty('--y', `${e.clientY - rect.top}px`);
-            });
-        });
-
-        function formatUptime(s) {
-            const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
-            return `SYSTEM_UPTIME: ${d > 0 ? d + 'D ' : ''}${h > 0 ? h + 'H ' : ''}${m > 0 ? m + 'M ' : ''}${s % 60}S`;
-        }
+        function openTempStats(entityId) { window.open(`/temp-stats?entity_id=${entityId}`, '_blank'); }
+        function openRainStats() { window.open(`/rain-stats`, '_blank'); }
+        function openEntranceStats() { window.open(`/entrance-stats`, '_blank'); }
+        function openPanoramaStats() { window.open(`/garage-stats`, '_blank'); } // Opens garage-stats.astro
 
         function formatSunshine(minutesTotal) {
             const h = Math.floor(minutesTotal / 60);
@@ -181,146 +236,111 @@
             return `${h}<span class="value-unit">h</span> ${m}<span class="value-unit">m</span>`;
         }
 
-        function renderChart(monthlyData) {
-            chartContainer.innerHTML = '';
-            const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-            const maxVal = Math.max(...Object.values(monthlyData), 10);
-
-            months.forEach(month => {
-                const value = monthlyData[month] || 0;
-                const percentage = (value / maxVal) * 100;
-
-                const column = document.createElement('div');
-                column.className = 'chart-column';
-                column.innerHTML = `
-                    <div class="chart-bar-container">
-                        <div class="chart-bar" style="height: ${percentage}%"></div>
-                    </div>
-                    <div class="chart-value">${value.toFixed(1)}</div>
-                    <div class="chart-label">${month.substring(0, 3)}</div>
-                `;
-                chartContainer.appendChild(column);
-            });
+        function applyWeatherTone(lux, isRaining) {
+            if (!weatherBg) return;
+            const brightness = 0.3 + (Math.log10(Math.max(1, lux)) / 4.5) * 0.7;
+            const saturation = 0.4 + (Math.log10(Math.max(1, lux)) / 4.5) * 0.7;
+            const blurValue = isRaining ? 8 : 5;
+            let filterString = `brightness(${Math.min(1.2, brightness).toFixed(2)}) saturate(${Math.min(1.3, saturation).toFixed(2)}) blur(${blurValue}px)`;
+            if (isRaining) filterString += ` contrast(0.85) sepia(0.15) hue-rotate(185deg)`;
+            weatherBg.style.filter = filterString;
         }
 
-        function triggerSimulation() {
-            if (!isSimulationMode) {
-                isSimulationMode = true;
-                statusDot.className = "status-dot online";
-                statusText.innerText = "SIMULIERTE LABORUMGEBUNG";
-                statusText.style.color = "var(--accent)";
-                uptimeDisplay.innerText = formatUptime(174291);
+        async function fetchLatestCameras() {
+            try {
+                const res = await fetch(`${workerUrl}/history`);
+                if (!res.ok) throw new Error("Worker returned " + res.status);
+                const files = await res.json();
+                
+                // Entrance Logic
+                const entranceFiles = files.filter(f => f.name.startsWith('entrance_'));
+                if (entranceFiles.length > 0) {
+                    const img = document.getElementById('latest-entrance-img');
+                    img.src = `${workerUrl}/${entranceFiles[0].name}`;
+                    img.style.display = 'block';
+                    document.getElementById('entrance-loading').style.display = 'none';
+                } else {
+                    document.getElementById('entrance-loading').innerText = "--";
+                }
 
-                renderChart({
-                    'Januar': 64.2, 'Februar': 48.1, 'März': 72.5, 'April': 38.0,
-                    'Mai': 14.2, 'Juni': 0.0, 'Juli': 0.0, 'August': 0.0,
-                    'September': 0.0, 'Oktober': 0.0, 'November': 0.0, 'Dezember': 0.0
-                });
+                // Panorama (Garage) Logic
+                const garageFiles = files.filter(f => f.name.startsWith('garage_'));
+                if (garageFiles.length > 0) {
+                    const img = document.getElementById('latest-panorama-img');
+                    img.src = `${workerUrl}/${garageFiles[0].name}`;
+                    img.style.display = 'block';
+                    document.getElementById('panorama-loading').style.display = 'none';
+                } else {
+                    document.getElementById('panorama-loading').innerText = "--";
+                }
+            } catch (e) { 
+                console.error("Camera tile error:", e);
+                document.getElementById('entrance-loading').innerText = "ERROR";
+                document.getElementById('panorama-loading').innerText = "ERROR";
             }
-
-            const baseTemp = 18.4 + Math.sin(Date.now()/50000)*2;
-            const tNorth = baseTemp - 2.3;
-            const tSouth = baseTemp + 4.1;
-            const tEast = baseTemp + 1.2;
-            const tWest = baseTemp - 0.5;
-            const tGreenhouse = 24.6 + Math.sin(Date.now()/30000)*2;
-
-            document.getElementById('ws-temp').innerHTML = `${baseTemp.toFixed(1)}<span class="value-unit">°C</span>`;
-            document.getElementById('ws-hum').innerText = `${Math.round(62 + Math.cos(Date.now()/40000)*5)} %`;
-            document.getElementById('ws-wind').innerHTML = `${(12.4 + Math.sin(Date.now()/10000)*4).toFixed(1)}<span class="value-unit">km/h</span>`;
-            document.getElementById('ws-lux').innerText = `${Math.round(4500 + Math.sin(Date.now()/60000)*4000)} lx`;
-            document.getElementById('ws-rain-today').innerHTML = `1.2<span class="value-unit">mm</span>`;
-            document.getElementById('ws-rain-yesterday').innerText = `0.4 mm`;
-            document.getElementById('ws-meteo-status').innerText = 'KLAR';
-            
-            // Simulating extended properties
-            document.getElementById('ws-wind-dir').innerText = 'Nord-Ost (45°)';
-            document.getElementById('ws-sunshine').innerHTML = formatSunshine(70); 
-            document.getElementById('ws-flag-raining').innerText = 'NEIN';
-            document.getElementById('ws-flag-storm').innerText = 'NEIN';
-
-            document.getElementById('facade-north').innerText = `${tNorth.toFixed(1)}°C`;
-            document.getElementById('facade-south').innerText = `${tSouth.toFixed(1)}°C`;
-            document.getElementById('facade-east').innerText = `${tEast.toFixed(1)}°C`;
-            document.getElementById('facade-west').innerText = `${tWest.toFixed(1)}°C`;
-            document.getElementById('facade-greenhouse').innerHTML = `${tGreenhouse.toFixed(1)}<span class="value-unit" style="color: var(--success);">°C</span>`;
-
-            const activeTemps = [baseTemp, tNorth, tSouth, tEast, tWest, tGreenhouse];
-            const avg = activeTemps.reduce((a, b) => a + b, 0) / activeTemps.length;
-            document.getElementById('computed-avg').innerText = `${avg.toFixed(1)} °C`;
         }
 
         async function fetchStatus() {
             try {
                 const res = await fetch('/api/status');
-                if (!res.ok) throw new Error("Proxy connection issue");
-                
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
-                
-                isSimulationMode = false;
                 statusDot.className = "status-dot online";
-                statusText.innerText = "VERBINDUNG STABIL // HUB_ONLINE";
-                statusText.style.color = "var(--success)";
-                
-                if (data.uptime !== undefined) uptimeDisplay.innerText = formatUptime(data.uptime);
-
-                let rawWsTemp = null;
-
+                statusText.innerText = t.online;
+                let tempsForAvg = [];
                 if (data.weather_station) {
                     const ws = data.weather_station;
-                    rawWsTemp = ws.temp;
-                    document.getElementById('ws-temp').innerHTML = ws.temp !== null ? `${ws.temp.toFixed(1)}<span class="value-unit">°C</span>` : '--.-<span class="value-unit">°C</span>';
-                    document.getElementById('ws-hum').innerText = ws.hum !== null ? `${Math.round(ws.hum)} %` : '-- %';
-                    document.getElementById('ws-wind').innerHTML = ws.wind !== null ? `${ws.wind.toFixed(1)}<span class="value-unit">km/h</span>` : '--.-<span class="value-unit">km/h</span>';
-                    document.getElementById('ws-lux').innerText = ws.lux !== null ? `${Math.round(ws.lux)} lx` : '-- lx';
-                    document.getElementById('ws-rain-today').innerHTML = ws.rain_today !== null ? `${ws.rain_today.toFixed(1)}<span class="value-unit">mm</span>` : '--.-<span class="value-unit">mm</span>';
-                    document.getElementById('ws-rain-yesterday').innerText = ws.rain_yesterday !== null ? `${ws.rain_yesterday.toFixed(1)} mm` : '--.- mm';
-                    document.getElementById('ws-meteo-status').innerText = ws.is_stormy ? 'STURM' : (ws.is_raining ? 'REGEN' : 'KLAR');
-                    
-                    // Parsing additional SWO-PL entities dynamically mapping falling null buffers safely
-                    document.getElementById('ws-wind-dir').innerText = ws.wind_direction !== undefined && ws.wind_direction !== null ? ws.wind_direction : 'N/A';
-                    document.getElementById('ws-sunshine').innerHTML = ws.sunshine_duration !== undefined && ws.sunshine_duration !== null ? formatSunshine(ws.sunshine_duration) : '--<span class="value-unit">h</span> --<span class="value-unit">m</span>';
-                    document.getElementById('ws-flag-raining').innerText = ws.is_raining ? 'JA' : 'NEIN';
-                    document.getElementById('ws-flag-storm').innerText = ws.is_stormy ? 'JA' : 'NEIN';
+                    applyWeatherTone(ws.lux || 0, ws.is_raining);
+                    if (ws.temp != null) {
+                        tempsForAvg.push(ws.temp);
+                        document.getElementById('ws-temp').innerHTML = `${ws.temp.toFixed(1)}<span class="value-unit">°C</span>`;
+                    }
+                    document.getElementById('ws-hum').innerText = ws.hum != null ? `${Math.round(ws.hum)} %` : '-- %';
+                    document.getElementById('ws-wind').innerHTML = ws.wind != null ? `${ws.wind.toFixed(1)}<span class="value-unit">km/h</span>` : '--.-';
+                    document.getElementById('ws-rain-today').innerHTML = ws.rain_today != null ? `${ws.rain_today.toFixed(1)}<span class="value-unit">mm</span>` : '--.-';
+                    const rY = ws.rain_yesterday;
+                    document.getElementById('ws-rain-yesterday').innerText = (rY != null) ? `${rY.toFixed(1)} mm` : '--.- mm';
+                    document.getElementById('ws-meteo-status').innerText = ws.is_stormy ? t.storm : (ws.is_raining ? t.rain : t.clear);
+                    document.getElementById('ws-sunshine').innerHTML = ws.sunshine_duration != null ? formatSunshine(ws.sunshine_duration) : '--h --m';
+                    document.getElementById('ws-lux').innerText = ws.lux != null ? `${Math.round(ws.lux)} lx` : '-- lx';
+                    document.getElementById('ws-flag-raining').innerText = ws.is_raining ? t.yes : t.no;
+                    document.getElementById('ws-flag-storm').innerText = ws.is_stormy ? t.yes : t.no;
                 }
-
-                const tNorth = data.house_north?.temp;
-                const tSouth = data.house_south?.temp;
-                const tEast = data.house_east?.temp;
-                const tWest = data.house_west?.temp;
-                const tGreenhouse = data.greenhouse?.temp;
-
-                document.getElementById('facade-north').innerText = tNorth !== null && tNorth !== undefined ? `${tNorth.toFixed(1)}°C` : '--.-°C';
-                document.getElementById('facade-south').innerText = tSouth !== null && tSouth !== undefined ? `${tSouth.toFixed(1)}°C` : '--.-°C';
-                document.getElementById('facade-east').innerText = tEast !== null && tEast !== undefined ? `${tEast.toFixed(1)}°C` : '--.-°C';
-                document.getElementById('facade-west').innerText = tWest !== null && tWest !== undefined ? `${tWest.toFixed(1)}°C` : '--.-°C';
-                document.getElementById('facade-greenhouse').innerHTML = tGreenhouse !== null && tGreenhouse !== undefined ? `${tGreenhouse.toFixed(1)}<span class="value-unit" style="color: var(--success);">°C</span>` : '--.-<span class="value-unit" style="color: var(--success);">°C</span>';
-
-                const dynamicArray = [rawWsTemp, tNorth, tSouth, tEast, tWest, tGreenhouse].filter(t => t !== null && t !== undefined);
-                if (dynamicArray.length > 0) {
-                    const calculatedAverage = dynamicArray.reduce((acc, val) => acc + val, 0) / dynamicArray.length;
-                    document.getElementById('computed-avg').innerText = `${calculatedAverage.toFixed(1)} °C`;
-                } else {
-                    document.getElementById('computed-avg').innerText = '--.- °C';
+                ['north', 'south', 'east', 'west'].forEach(dir => {
+                    const temp = data[`house_${dir}`]?.temp;
+                    if (temp != null) tempsForAvg.push(temp);
+                    document.getElementById(`facade-${dir}`).innerText = (temp != null) ? temp.toFixed(1) + '°C' : '--.-°C';
+                });
+                if (data.greenhouse) {
+                    const gT = data.greenhouse.temp;
+                    document.getElementById('facade-greenhouse').innerHTML = (gT != null) ? `${gT.toFixed(1)}<span class="value-unit" style="color: var(--success);">°C</span>` : '--.-°C';
+                    const watchdogEl = document.getElementById('ws-watchdog');
+                    const isActive = data.greenhouse.watchdog_active;
+                    watchdogEl.innerText = isActive ? t.on : t.off;
+                    watchdogEl.style.color = isActive ? 'var(--text-dim)' : 'var(--accent)';
+                    const energyEl = document.getElementById('ws-heater-energy');
+                    const hEnergy = data.greenhouse.heater_energy;
+                    energyEl.innerText = (hEnergy != null) ? `${hEnergy.toFixed(2)} kWh` : '--.- kWh';
                 }
-
-                if (data.historical_rain) {
-                    renderChart(data.historical_rain);
+                if (tempsForAvg.length > 0) {
+                    const avg = tempsForAvg.reduce((a, b) => a + b, 0) / tempsForAvg.length;
+                    document.getElementById('computed-avg').innerText = `${avg.toFixed(1)} °C`;
                 }
-
             } catch (e) { 
-                triggerSimulation(); 
+                statusDot.className = "status-dot";
+                statusText.innerText = t.error;
             }
         }
-
         setInterval(() => {
             const d = new Date();
             document.getElementById('system-time').innerText = d.toLocaleTimeString('de-DE', { hour12: false }) + " // UTC" + (d.getTimezoneOffset() / -60 >= 0 ? "+" : "") + (d.getTimezoneOffset() / -60);
         }, 1000);
-
         fetchStatus();
-        setInterval(fetchStatus, isSimulationMode ? 2000 : 60000);
+        fetchLatestCameras();
+        setInterval(() => {
+            fetchStatus();
+            fetchLatestCameras();
+        }, 60000);
     </script>
 </body>
 </html>
@@ -337,24 +357,33 @@
         --text-muted: #4b5563;
         --text-dim: #9ca3af;
     }
-
+    #weather-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -2;
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+        transition: filter 3s ease;
+    }
+    .clickable { cursor: pointer; transition: background 0.2s, transform 0.2s;
+    }
+    .clickable:hover { background: rgba(255, 255, 255, 0.03); border-color: var(--card-border-hover);
+    }
+    .clickable:active { transform: scale(0.98); }
     body {
         font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
         background-color: var(--bg);
-        /* We add the image to the end of the stack so gradients/grids sit on top of it */
         background-image: 
             radial-gradient(circle at 0% 0%, rgba(214, 175, 55, 0.04), transparent 45%),
             radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.02), transparent 45%),
             linear-gradient(to right, rgba(255, 255, 255, 0.01) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px),
-            url('/garten_bg.webp');
-        
-        /* 'cover' scales the image, 'center' centers it, 'fixed' keeps it crisp when scrolling */
-        background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px, cover;
-        background-position: center center;
-        background-attachment: scroll, scroll, scroll, scroll, fixed;
-        background-repeat: no-repeat;
-        
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+        background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px;
+        background-attachment: fixed;
         color: var(--text-main);
         margin: 0;
         min-height: 100vh;
@@ -364,99 +393,65 @@
         padding: 4rem 2rem;
         box-sizing: border-box;
     }
-
-    .container { max-width: 1100px; width: 100%; }
-
-    header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        padding-bottom: 2rem;
-        width: 100%;
+    .container { max-width: 1100px; width: 100%;
     }
-
-    .brand h1 {
-        font-size: 2rem;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-        margin: 0;
-        background: linear-gradient(135deg, #fff 50%, var(--accent));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
+    .brand h1 { font-size: 2rem; font-weight: 800;
+    letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
-
-    .brand p { margin: 0.35rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
-
-    .status-badge {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        padding: 0.5rem 1.2rem;
-        border-radius: 100px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        font-family: 'JetBrains Mono', monospace;
+    .brand p { margin: 0.35rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; }
+    .status-badge { display: flex; align-items: center; gap: 0.6rem;
+    background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem;
+    font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151;
+    position: relative; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success);
     }
-
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151; position: relative; }
-    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success); }
-    .status-dot.online::after {
-        content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0;
-        border-radius: 50%; background: var(--success); animation: pulse 2s infinite;
+    .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%;
+    background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); opacity: 1;
+    } 100% { transform: scale(3); opacity: 0; } }
+    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr);
+    gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
+    .col-4 { grid-column: span 4;
     }
-    @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
-
-    .section-title {
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: var(--accent);
-        margin: 2rem 0 1rem 0;
-        font-weight: 700;
-        width: 100%;
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.75rem; backdrop-filter: blur(20px);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; display: flex; flex-direction: column;
     }
-
-    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
-    .col-4 { grid-column: span 4; }
-    .col-6 { grid-column: span 6; }
-    .col-12 { grid-column: span 12; }
-
-    .card {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: 1rem;
-        padding: 1.75rem;
-        backdrop-filter: blur(20px);
-        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
-        overflow: hidden;
+    .card:hover { border-color: var(--card-border-hover); box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7);
     }
-    .card:hover { border-color: var(--card-border-hover); transform: translateY(-2px); box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7); }
-
-    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem; }
-
-    .value-large { font-family: 'JetBrains Mono', monospace; font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; color: var(--text-main); line-height: 1.1; }
-    .value-unit { font-size: 1.1rem; color: #4b5563; font-weight: 500; margin-left: 0.25rem; font-family: 'Plus Jakarta Sans', sans-serif; }
-
-    .sub-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 1.25rem; }
-    .sub-label { font-size: 0.68rem; color: #52525b; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem; letter-spacing: 0.02em; }
-    .sub-value { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 700; color: var(--text-dim); }
-
-    .facade-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
-    .facade-row:last-child { border: none; padding-bottom: 0; }
-    .facade-name { font-size: 0.85rem; font-weight: 600; color: var(--text-dim); }
-    .facade-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.95rem; color: #fff; }
-
-    .history-chart-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; min-height: 140px; align-items: flex-end; padding-top: 1rem; }
-    .chart-column { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
-    .chart-bar-container { width: 100%; height: 100px; background: rgba(255,255,255,0.01); border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden; border: 1px solid rgba(255,255,255,0.02); }
-    .chart-bar { width: 100%; background: linear-gradient(to top, rgba(214, 175, 55, 0.2), var(--accent)); border-radius: 3px 3px 0 0; transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-    .chart-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin: 0.4rem 0 0.15rem 0; }
-    .chart-label { font-size: 0.7rem; text-transform: uppercase; color: #52525b; font-weight: 700; letter-spacing: 0.05em; }
-
-    footer { margin-top: auto; padding-top: 4rem; display: flex; justify-content: space-between; align-items: center; color: #27272a; font-size: 0.75rem; font-weight: 600; border-top: 1px solid rgba(255, 255, 255, 0.03); width: 100%; }
+    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem;
+    }
+    .value-large { font-family: 'JetBrains Mono', monospace; font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; color: var(--text-main); line-height: 1.1;
+    margin: auto 0; text-align: center; }
+    .value-unit { font-size: 1.1rem; color: #4b5563; font-weight: 500; margin-left: 0.25rem;
+    font-family: 'Plus Jakarta Sans', sans-serif; }
+    .sub-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 1.25rem; text-align: center; }
+    .sub-label { font-size: 0.68rem;
+    color: #52525b; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem; letter-spacing: 0.02em; }
+    .sub-value { font-family: 'JetBrains Mono', monospace;
+    font-size: 1.05rem; font-weight: 700; color: var(--text-dim); }
+    .facade-row { display: flex; justify-content: space-between; align-items: center;
+    padding: 0.75rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.03); border-radius: 4px; }
+    .facade-row:last-child { border: none;
+    padding-bottom: 0; }
+    .facade-name { font-size: 0.85rem; font-weight: 600; color: var(--text-dim);
+    }
+    .facade-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.95rem; color: #fff;
+    }
+    footer { margin-top: auto; padding-top: 4rem; display: flex; justify-content: space-between; align-items: center; color: #27272a; font-size: 0.75rem;
+    font-weight: 600; border-top: 1px solid rgba(255, 255, 255, 0.03); width: 100%;
+    }
+    @media (max-width: 992px) { .col-4 { grid-column: span 6;
+    } }
+    @media (max-width: 768px) {
+        .col-4 { grid-column: span 12;
+        }
+        header { flex-direction: column; align-items: flex-start; gap: 1rem;
+        }
+        .bento-grid { gap: 1rem; }
+    }
 </style>

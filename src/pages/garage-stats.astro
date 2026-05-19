@@ -1,0 +1,235 @@
+---
+// src/pages/garage-stats.astro
+const acceptLang = Astro.request.headers.get('accept-language') || 'de';
+const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
+const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+
+const trans = {
+    de: { 
+        title: "Burg | Panorama-Historie", head: "Burg - Panorama (30 Tage)", back: "Zurück", 
+        online: "VERBUNDEN", init: "INITIALISIERE...", loading: "Lade Bilder-Historie...",
+        deleteAll: "ALLE LÖSCHEN", delete: "LÖSCHEN", confirmDel: "Dieses Bild wirklich löschen?", 
+        confirmDelAll: "WARNUNG: Alle Bilder unwiderruflich löschen?", errPwd: "Fehler beim Löschen."
+    },
+    en: { 
+        title: "Burg | Panorama History", head: "Burg - Panorama (30 Days)", back: "Back", 
+        online: "CONNECTED", init: "INITIALIZING...", loading: "Loading history...",
+        deleteAll: "DELETE ALL", delete: "DELETE", confirmDel: "Are you sure you want to delete this image?", 
+        confirmDelAll: "WARNING: Delete ALL images permanently?", errPwd: "Failed to delete."
+    },
+    it: { 
+        title: "Burg | Cronologia Panorama", head: "Burg - Panorama (30 Giorni)", back: "Indietro", 
+        online: "CONNESSO", init: "INIZIALIZZAZIONE...", loading: "Caricamento cronologia...",
+        deleteAll: "ELIMINA TUTTO", delete: "ELIMINA", confirmDel: "Sei sicuro di voler eliminare questa immagine?", 
+        confirmDelAll: "ATTENZIONE: Eliminare TUTTE le immagini in modo permanente?", errPwd: "Impossibile eliminare."
+    }
+};
+
+const t = trans[lang];
+---
+<!DOCTYPE html>
+<html lang={lang}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{t.title}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+</head>
+<body>
+    <div class="floating-back clickable" onclick="if(window.opener){window.close();}else{window.location.href='/';}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span>{t.back}</span>
+    </div>
+
+    <div id="weather-bg" style="background-image: url('/garten_bg.webp');"></div>
+
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h1>{t.head}</h1>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem;">
+                <div class="status-badge">
+                    <div id="status-indicator" class="status-dot online"></div>
+                    <span id="status-text">{t.online}</span>
+                </div>
+                <button class="delete-btn" onclick="deleteAllImages()">{t.deleteAll}</button>
+            </div>
+        </header>
+
+        <div class="bento-grid" id="history-gallery">
+            <p style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">{t.loading}</p>
+        </div>
+    </div>
+
+    <script is:inline set:html={`const t = ${JSON.stringify(t)};`}></script>
+    <script is:inline>
+        const weatherBg = document.getElementById('weather-bg');
+        
+        function applyWeatherTone(lux, isRaining) {
+            if (!weatherBg) return;
+            const brightness = 0.3 + (Math.log10(Math.max(1, lux)) / 4.5) * 0.7;
+            const saturation = 0.4 + (Math.log10(Math.max(1, lux)) / 4.5) * 0.7;
+            let filterString = `brightness(${Math.min(1.2, brightness).toFixed(2)}) saturate(${Math.min(1.3, saturation).toFixed(2)}) blur(${isRaining ? 8 : 5}px)`;
+            if (isRaining) filterString += ` contrast(0.85) sepia(0.15) hue-rotate(185deg)`;
+            weatherBg.style.filter = filterString;
+        }
+
+        fetch('/api/status').then(r => r.json()).then(data => {
+            if (data.weather_station) applyWeatherTone(data.weather_station.lux || 0, data.weather_station.is_raining);
+        });
+        
+        const workerUrl = "https://burg-upload-proxy.csaa6335.workers.dev";
+        
+        async function deleteImage(filename) {
+            if (!confirm(`${t.confirmDel}\n\n${filename}`)) return;
+            try {
+                const response = await fetch(`/api/delete-image?file=${filename}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) location.reload();
+                else alert(t.errPwd);
+            } catch (e) {
+                alert(t.errPwd);
+            }
+        }
+
+        async function deleteAllImages() {
+            if (!confirm(t.confirmDelAll)) return;
+            try {
+                // Passes the garage prefix so it doesn't delete the entrance images
+                const response = await fetch(`/api/delete-image?prefix=garage_`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) location.reload();
+                else alert(t.errPwd);
+            } catch (e) {
+                alert(t.errPwd);
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                // Only fetches the garage images from the worker
+                const res = await fetch(`${workerUrl}/history?prefix=garage_`);
+                if (!res.ok) throw new Error("Worker Error");
+                const files = await res.json();
+                const gallery = document.getElementById('history-gallery');
+                
+                if (files.length === 0) {
+                    gallery.innerHTML = `<p style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">--</p>`;
+                    return;
+                }
+
+                gallery.innerHTML = files.map(file => `
+                    <div class="card col-12" style="margin-bottom: 1.5rem; padding: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <div class="card-title" style="color: var(--accent); margin-bottom: 0;">${new Date(file.time).toLocaleString('de-DE')}</div>
+                            <button class="delete-btn" onclick="deleteImage('${file.name}')">${t.delete}</button>
+                        </div>
+                        <img src="${workerUrl}/${file.name}" style="width: 100%; border-radius: 8px; display: block;" loading="lazy">
+                    </div>
+                `).join('');
+            } catch (e) { 
+                document.getElementById('history-gallery').innerHTML = `<p style="color: #ef4444; font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">Fehler beim Laden.</p>`;
+            }
+        }
+        
+        loadHistory();
+    </script>
+</body>
+</html>
+
+<style is:global>
+    :root {
+        --bg: #030303;
+        --card-bg: rgba(14, 14, 14, 0.65);
+        --card-border: rgba(214, 175, 55, 0.09);
+        --accent: #ca9f1b;
+        --success: #10b981;
+        --text-main: #f3f4f6;
+        --text-dim: #9ca3af;
+    }
+
+    #weather-bg {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%; z-index: -2;
+        background-size: cover; background-position: center center;
+        background-repeat: no-repeat; transition: filter 3s ease;
+    }
+
+    .floating-back {
+        position: fixed; top: max(1.5rem, env(safe-area-inset-top));
+        left: max(1.5rem, env(safe-area-inset-left));
+        z-index: 999; display: flex; align-items: center; gap: 0.5rem;
+        background: rgba(14, 14, 14, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        backdrop-filter: blur(20px); padding: 0.5rem 1rem 0.5rem 0.5rem; border-radius: 100px;
+        color: var(--text-main); font-size: 0.8rem;
+        font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; transition: all 0.2s; cursor: pointer;
+    }
+    .floating-back:hover { border-color: rgba(214, 175, 55, 0.25); background: rgba(255, 255, 255, 0.05); transform: scale(1.02);
+    }
+    .floating-back:active { transform: scale(0.96); }
+
+    .delete-btn {
+        background: rgba(239, 68, 68, 0.08);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        padding: 0.25rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 0.05em;
+        transition: all 0.2s;
+    }
+    .delete-btn:hover { background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.4); }
+    header .delete-btn { border-radius: 100px; padding: 0.3rem 0.8rem;
+    }
+
+    body {
+        font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+        background-color: var(--bg); color: var(--text-main); margin: 0;
+        min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+        padding: 5.5rem 2rem 4rem 2rem;
+        box-sizing: border-box;
+    }
+
+    .container { max-width: 1100px; width: 100%; }
+    header { display: flex;
+        justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem;
+    }
+    .brand h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent));
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .status-badge { display: flex; align-items: center; gap: 0.6rem;
+        background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem;
+        font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151;
+        position: relative; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success);
+    }
+    .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%;
+        background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); opacity: 1;
+        } 100% { transform: scale(3); opacity: 0; } }
+
+    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr);
+        gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
+    .col-12 { grid-column: span 12;
+    }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; backdrop-filter: blur(20px); display: flex; flex-direction: column;
+        overflow: hidden;}
+    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+        header { flex-direction: column;
+            align-items: flex-start; gap: 1rem; }
+    }
+</style>

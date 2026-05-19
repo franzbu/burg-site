@@ -1,0 +1,21 @@
+{
+  "name": "Burg Klimadaten",
+  "short_name": "Burg",
+  "description": "Burg Operating Center - Klimadaten & Live-Status",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030303",
+  "theme_color": "#030303",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><rect width='24' height='24' fill='black'/><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><rect width='24' height='24' fill='black'/><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

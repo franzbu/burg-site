@@ -1,0 +1,24 @@
+{
+  "name": "burg-site",
+  "compatibility_date": "2026-04-15",
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    {
+      "pattern": "burg.gitor.uk",
+      "zone_name": "gitor.uk",
+      "custom_domain": true,
+      "enabled": true,
+      "previews_enabled": false
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "e74b3f061f9a401bb75722afa8889612"
+    }
+  ]
+}
