@@ -17,7 +17,7 @@ const trans = {
         stormDetect: "Sturmwahrnehmung", windSpeed: "💨 Windgeschwindigkeit", humidity: "Luftfeuchtigkeit",
         online: "WETTERSTATION ONLINE", error: "KONNEKTIVITÄTSFEHLER",
         storm: "STURM", rain: "REGEN", clear: "KLAR", yes: "JA", no: "NEIN", on: "EIN", off: "AUS",
-        entrance: "🚪 Eingang", panorama: "⛰️ Panorama"
+        panorama: "⛰️ Panorama"
     },
     en: {
         title: "Burg | Climate Data", head: "Burg - Climate Data", live: "Live Operations Center",
@@ -31,7 +31,7 @@ const trans = {
         stormDetect: "Storm Detection", windSpeed: "💨 Wind Speed", humidity: "Humidity",
         online: "WEATHER STATION ONLINE", error: "CONNECTION ERROR",
         storm: "STORM", rain: "RAIN", clear: "CLEAR", yes: "YES", no: "NO", on: "ON", off: "OFF",
-        entrance: "🚪 Entrance", panorama: "⛰️ Panorama"
+        panorama: "⛰️ Panorama"
     },
     it: {
         title: "Burg | Dati Climatici", head: "Burg - Dati Climatici", live: "Centro Operativo Live",
@@ -45,7 +45,7 @@ const trans = {
         stormDetect: "Rilevamento Tempesta", windSpeed: "💨 Velocità Vento", humidity: "Umidità",
         online: "STAZIONE METEO ONLINE", error: "ERRORE DI CONNESSIONE",
         storm: "TEMPESTA", rain: "PIOGGIA", clear: "SERENO", yes: "SÌ", no: "NO", on: "ON", off: "OFF",
-        entrance: "🚪 Ingresso", panorama: "⛰️ Panorama"
+        panorama: "⛰️ Panorama"
     }
 };
 const t = trans[lang];
@@ -207,17 +207,6 @@ const t = trans[lang];
                 </div>
             </div>
 
-            <div class="card col-4 clickable" onclick="openEntranceStats()">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem;">
-                    <div class="card-title" style="margin-bottom: 0;">{t.entrance}</div>
-                    <div id="entrance-time" style="font-size: 0.65rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;"></div>
-                </div>
-                <div id="entrance-container" style="flex: 1; width: 100%; border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; min-height: 120px; position: relative;">
-                    <img id="latest-entrance-img" style="width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0;">
-                    <span id="entrance-loading" style="font-size: 0.7rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; z-index: 1;">{t.loading}</span>
-                </div>
-            </div>
-
         </div>
 
         <footer>
@@ -234,7 +223,6 @@ const t = trans[lang];
 
         function openTempStats(entityId) { window.open(`/temp-stats?entity_id=${entityId}`, '_blank'); }
         function openRainStats() { window.open(`/rain-stats`, '_blank'); }
-        function openEntranceStats() { window.open(`/entrance-stats`, '_blank'); }
         function openPanoramaStats() { window.open(`/garage-stats`, '_blank'); }
 
         function formatSunshine(minutesTotal) {
@@ -259,19 +247,6 @@ const t = trans[lang];
                 if (!res.ok) throw new Error("Worker returned " + res.status);
                 const files = await res.json();
                 
-                // Entrance Logic
-                const entranceFiles = files.filter(f => f.name.startsWith('entrance_'));
-                if (entranceFiles.length > 0) {
-                    const img = document.getElementById('latest-entrance-img');
-                    img.src = `${workerUrl}/${entranceFiles[0].name}`;
-                    img.style.display = 'block';
-                    document.getElementById('entrance-loading').style.display = 'none';
-                    document.getElementById('entrance-time').innerText = new Date(entranceFiles[0].time).toLocaleString('de-DE');
-                } else {
-                    document.getElementById('entrance-loading').innerText = "--";
-                    document.getElementById('entrance-time').innerText = "";
-                }
-
                 // Panorama (Garage) Logic
                 const garageFiles = files.filter(f => f.name.startsWith('garage_'));
                 if (garageFiles.length > 0) {
@@ -286,7 +261,6 @@ const t = trans[lang];
                 }
             } catch (e) { 
                 console.error("Camera tile error:", e);
-                document.getElementById('entrance-loading').innerText = "ERROR";
                 document.getElementById('panorama-loading').innerText = "ERROR";
             }
         }
