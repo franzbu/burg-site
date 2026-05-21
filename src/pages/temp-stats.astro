@@ -123,7 +123,6 @@ const t = trans[lang];
 
         const urlParams = new URLSearchParams(window.location.search);
         const entity = urlParams.get('entity_id');
-        
         const entityMap = t.entities;
         const entityInfo = entityMap[entity] || { name: entity, unit: '' };
         document.getElementById('sensor-name').innerText = entityInfo.name;
@@ -163,7 +162,7 @@ const t = trans[lang];
                     const dChart = document.getElementById('dailyChart');
                     let maxVal = Math.max(...data.daily.map(d => d.mean), 1);
                     let minVal = Math.min(...data.daily.map(d => d.mean), 0);
-                    if(minVal > 0) minVal = 0; 
+                    if(minVal > 0) minVal = 0;
                     const range = maxVal - minVal || 1;
 
                     data.daily.forEach(point => {
@@ -174,7 +173,7 @@ const t = trans[lang];
                         dChart.innerHTML += `
                             <div class="chart-column">
                                 <div class="chart-bar-container">
-                                    <div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(214, 175, 55, 0.2), var(--accent)); opacity: 0.9;"></div>
+                                    <div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(16, 185, 129, 0.2), var(--success)); opacity: 0.9;"></div>
                                 </div>
                                 <div class="chart-value">${point.mean.toFixed(1)}</div>
                                 <div class="chart-label">${label}</div>
@@ -303,7 +302,8 @@ const t = trans[lang];
         background: rgba(255, 255, 255, 0.05);
         transform: scale(1.02);
     }
-    .floating-back:active { transform: scale(0.96); }
+    .floating-back:active { transform: scale(0.96);
+    }
 
     body {
         font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
@@ -325,34 +325,61 @@ const t = trans[lang];
         box-sizing: border-box;
     }
 
-    .container { max-width: 1100px; width: 100%; }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
-    .brand h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .brand p { margin: 0.35rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
-    .status-badge { display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151; position: relative; }
-    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success); }
-    .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
-    @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
-    .section-title { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); margin: 2rem 0 1rem 0; font-weight: 700; width: 100%; }
-    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
-    .col-12 { grid-column: span 12; }
-    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.75rem; backdrop-filter: blur(20px); position: relative; overflow: hidden; display: flex; flex-direction: column; }
-    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem; }
+    .container { max-width: 1100px;
+        width: 100%; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
+    .brand h1 { font-size: 2rem; font-weight: 800;
+        letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .brand p { margin: 0.35rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-weight: 600;
+        font-family: 'JetBrains Mono', monospace; }
+    .status-badge { display: flex; align-items: center; gap: 0.6rem;
+        background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem;
+        font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151;
+        position: relative; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success);
+    }
+    .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%;
+        background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); opacity: 1;
+    } 100% { transform: scale(3); opacity: 0; } }
+    .section-title { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.15em;
+        color: var(--accent); margin: 2rem 0 1rem 0; font-weight: 700; width: 100%; }
+    .bento-grid { display: grid;
+        grid-template-columns: repeat(12, 1fr); gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
+    .col-12 { grid-column: span 12;
+    }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.75rem; backdrop-filter: blur(20px); position: relative;
+        overflow: hidden; display: flex; flex-direction: column; }
+    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b;
+        font-weight: 700; margin-bottom: 1.25rem; }
     
-    .history-chart-grid { display: flex; flex-wrap: nowrap; gap: 0.75rem; min-height: 140px; align-items: flex-end; padding-top: 1rem; overflow-x: auto; overflow-y: hidden; padding-bottom: 0.5rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.1) transparent; }
+    .history-chart-grid { display: flex; flex-wrap: nowrap; gap: 0.75rem;
+        min-height: 140px; align-items: flex-end; padding-top: 1rem; overflow-x: auto; overflow-y: hidden; padding-bottom: 0.5rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    }
     .history-chart-grid::-webkit-scrollbar { height: 6px; }
-    .history-chart-grid::-webkit-scrollbar-track { background: transparent; }
-    .history-chart-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+    .history-chart-grid::-webkit-scrollbar-track { background: transparent;
+    }
+    .history-chart-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px;
+    }
     .history-chart-grid::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
 
-    .chart-column { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; min-width: 45px; max-width: 75px; flex: 1 1 0; }
-    .chart-bar-container { width: 100%; height: 120px; background: rgba(255,255,255,0.01); border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden; border: 1px solid rgba(255,255,255,0.02); }
-    .chart-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-    .chart-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin: 0.4rem 0 0.15rem 0; white-space: nowrap; }
-    .chart-label { font-size: 0.7rem; text-transform: uppercase; color: #52525b; font-weight: 700; letter-spacing: 0.05em; }
+    .chart-column { display: flex;
+        flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; min-width: 45px; max-width: 75px; flex: 1 1 0;
+    }
+    .chart-bar-container { width: 100%; height: 120px; background: rgba(255,255,255,0.01); border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.02); }
+    .chart-bar { width: 100%; border-radius: 3px 3px 0 0;
+        transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    .chart-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+        color: var(--text-dim); font-weight: 700; margin: 0.4rem 0 0.15rem 0; white-space: nowrap; }
+    .chart-label { font-size: 0.7rem;
+        text-transform: uppercase; color: #52525b; font-weight: 700; letter-spacing: 0.05em; }
 
     @media (max-width: 768px) {
-        header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+        header { flex-direction: column;
+            align-items: flex-start; gap: 1rem; }
     }
 </style>

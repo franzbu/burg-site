@@ -220,6 +220,8 @@ const t = trans[lang];
         const statusText = document.getElementById('status-text');
         const weatherBg = document.getElementById('weather-bg');
         const workerUrl = "https://burg-upload-proxy.csaa6335.workers.dev";
+        
+        let lastUpdateStr = "";
 
         function openTempStats(entityId) { window.open(`/temp-stats?entity_id=${entityId}`, '_blank'); }
         function openRainStats() { window.open(`/rain-stats`, '_blank'); }
@@ -270,6 +272,9 @@ const t = trans[lang];
                 const res = await fetch('/api/status');
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
+                
+                lastUpdateStr = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                
                 statusDot.className = "status-dot online";
                 statusText.innerText = t.online;
                 let tempsForAvg = [];
@@ -313,7 +318,7 @@ const t = trans[lang];
                 }
             } catch (e) { 
                 statusDot.className = "status-dot";
-                statusText.innerText = t.error;
+                statusText.innerText = `${t.error} (${lastUpdateStr || '--:--'})`;
             }
         }
         setInterval(() => {

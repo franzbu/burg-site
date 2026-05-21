@@ -3,7 +3,6 @@
 const acceptLang = Astro.request.headers.get('accept-language') || 'de';
 const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
 const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
-
 const trans = {
     de: { 
         title: "Burg | Eingangs-Historie", head: "Burg - Eingang (30 Tage)", back: "Zurück", 
@@ -63,6 +62,11 @@ const t = trans[lang];
         </div>
     </div>
 
+    <div id="fullscreen-overlay" onclick="this.style.display='none'">
+        <div class="close-overlay">✕</div>
+        <img id="overlay-img" src="" alt="Fullscreen view">
+    </div>
+
     <script is:inline set:html={`const t = ${JSON.stringify(t)};`}></script>
     <script is:inline>
         const weatherBg = document.getElementById('weather-bg');
@@ -82,15 +86,18 @@ const t = trans[lang];
 
         const workerUrl = "https://burg-upload-proxy.csaa6335.workers.dev";
         
+        function showFullscreen(url) {
+            document.getElementById('overlay-img').src = url;
+            document.getElementById('fullscreen-overlay').style.display = 'flex';
+        }
+
         async function deleteImage(filename) {
             if (!confirm(`${t.confirmDel}\n\n${filename}`)) return;
-
             try {
                 // Call our secure Astro backend instead of the Worker directly
                 const response = await fetch(`/api/delete-image?file=${filename}`, {
                     method: 'DELETE'
                 });
-                
                 if (response.ok) location.reload();
                 else alert(t.errPwd);
             } catch (e) {
@@ -100,13 +107,11 @@ const t = trans[lang];
 
         async function deleteAllImages() {
             if (!confirm(t.confirmDelAll)) return;
-
             try {
                 // Call our secure Astro backend without a filename to trigger delete-all
                 const response = await fetch(`/api/delete-image?prefix=entrance_`, {
                     method: 'DELETE'
                 });
-                
                 if (response.ok) location.reload();
                 else alert(t.errPwd);
             } catch (e) {
@@ -120,7 +125,6 @@ const t = trans[lang];
                 if (!res.ok) throw new Error("Worker Error");
                 const files = await res.json();
                 const gallery = document.getElementById('history-gallery');
-
                 if (files.length === 0) {
                     gallery.innerHTML = `<p style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">--</p>`;
                     return;
@@ -132,7 +136,7 @@ const t = trans[lang];
                             <div class="card-title" style="color: var(--accent); margin-bottom: 0;">${new Date(file.time).toLocaleString('de-DE')}</div>
                             <button class="delete-btn" onclick="deleteImage('${file.name}')">${t.delete}</button>
                         </div>
-                        <img src="${workerUrl}/${file.name}" style="width: 100%; border-radius: 8px; display: block;" loading="lazy">
+                        <img src="${workerUrl}/${file.name}" onclick="event.stopPropagation(); showFullscreen('${workerUrl}/${file.name}')" style="width: 100%; border-radius: 8px; display: block; cursor: zoom-in;" loading="lazy">
                     </div>
                 `).join('');
             } catch (e) { 
@@ -175,7 +179,8 @@ const t = trans[lang];
         font-weight: 700; text-transform: uppercase;
         letter-spacing: 0.05em; transition: all 0.2s; cursor: pointer;
     }
-    .floating-back:hover { border-color: rgba(214, 175, 55, 0.25); background: rgba(255, 255, 255, 0.05); transform: scale(1.02); }
+    .floating-back:hover { border-color: rgba(214, 175, 55, 0.25); background: rgba(255, 255, 255, 0.05); transform: scale(1.02);
+    }
     .floating-back:active { transform: scale(0.96); }
 
     .delete-btn {
@@ -191,8 +196,10 @@ const t = trans[lang];
         letter-spacing: 0.05em;
         transition: all 0.2s;
     }
-    .delete-btn:hover { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); }
-    header .delete-btn { border-radius: 100px; padding: 0.3rem 0.8rem; }
+    .delete-btn:hover { background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.4); }
+    header .delete-btn { border-radius: 100px; padding: 0.3rem 0.8rem;
+    }
 
     body {
         font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
@@ -218,7 +225,7 @@ const t = trans[lang];
     .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%;
         background: var(--success); animation: pulse 2s infinite; }
     @keyframes pulse { 0% { transform: scale(1); opacity: 1;
-        } 100% { transform: scale(3); opacity: 0; } }
+    } 100% { transform: scale(3); opacity: 0; } }
 
     .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr);
         gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
@@ -228,6 +235,13 @@ const t = trans[lang];
         overflow: hidden;}
     .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700;
     }
+
+    #fullscreen-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.95); z-index: 9999; justify-content: center; align-items: center; cursor: zoom-out;
+    }
+    #overlay-img { max-width: 95%; max-height: 90%; object-fit: contain; border-radius: 4px; }
+    .close-overlay { position: absolute; top: max(1.5rem, env(safe-area-inset-top)); right: 2rem; color: white; font-size: 2rem; font-weight: bold; }
 
     @media (max-width: 768px) {
         header { flex-direction: column;
