@@ -70,7 +70,8 @@ export const GET: APIRoute = async () => {
                         ws.send(JSON.stringify({ id: 2, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: [TOTAL_RAIN_ID], period: "month", types: ["sum"] }));
                         ws.send(JSON.stringify({ id: 3, type: "recorder/statistics_during_period", start_time: mtdStart, end_time: now, statistic_ids: [TOTAL_RAIN_ID], period: "day", types: ["sum"] }));
                         ws.send(JSON.stringify({ id: 4, type: "recorder/statistics_during_period", start_time: dayStart, end_time: now, statistic_ids: [IRRIGATION_ID], period: "day", types: ["max"] }));
-                        ws.send(JSON.stringify({ id: 5, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: [IRRIGATION_ID], period: "month", types: ["max"] }));
+                        // FIX: Changed period from "month" to "day" so we can sum all daily maximums accurately
+                        ws.send(JSON.stringify({ id: 5, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: [IRRIGATION_ID], period: "day", types: ["max"] }));
                     } else if (msg.type === "result") {
                         if (msg.id === 1) dailyData = msg.result || {};
                         if (msg.id === 2) monthlyData = msg.result || {};
@@ -186,12 +187,6 @@ export const GET: APIRoute = async () => {
     };
 
     const irrHistDays = extractDailyMax(irrHist, IRRIGATION_ID);
-    
-    // --- PERMANENT INJECTION FOR MAY 21, 2026 ---
-    if (!irrHistDays.find((d: any) => d.start.startsWith("2026-05-21"))) {
-        irrHistDays.push({ start: "2026-05-21T12:00:00.000Z", val: 1.0 });
-    }
-    // --------------------------------------------
 
     const monthlyIrrArchive: any = {};
     irrHistDays.forEach((dayObj: any) => {
@@ -224,12 +219,6 @@ export const GET: APIRoute = async () => {
 
     const formattedDaily14d = generatePadded14d(dailyRain);
     const irrDailyDays = extractDailyMax(irrDaily, IRRIGATION_ID);
-
-    // --- PERMANENT INJECTION FOR MAY 21, 2026 ---
-    if (!irrDailyDays.find((d: any) => d.start.startsWith("2026-05-21"))) {
-        irrDailyDays.push({ start: "2026-05-21T12:00:00.000Z", val: 1.0 });
-    }
-    // --------------------------------------------
 
     const dailyIrr14d = generatePadded14d(irrDailyDays, dailyRawCalc);
 

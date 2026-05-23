@@ -3,7 +3,6 @@
 const acceptLang = Astro.request.headers.get('accept-language') || 'de';
 const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
 const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
-
 const trans = {
     de: {
         title: "Burg | Klimadaten", head: "Burg - Klimadaten", live: "Live-Betriebszentrum",
@@ -245,7 +244,7 @@ const t = trans[lang];
         function openTempStats(entityId) { window.open(`/temp-stats?entity_id=${entityId}`, '_blank'); }
         function openRainStats() { window.open(`/rain-stats`, '_blank'); }
         function openIrrigationStats() { window.open(`/irrigation-stats`, '_blank'); }
-        function openPanoramaStats() { window.open(`/garage-stats`, '_blank'); }
+        function openPanoramaStats() { window.open(`/panorama`, '_blank'); }
 
         function formatSunshine(minutesTotal) {
             const h = Math.floor(minutesTotal / 60);
@@ -268,13 +267,13 @@ const t = trans[lang];
                 const res = await fetch(`${workerUrl}/history`);
                 if (!res.ok) throw new Error("Worker returned " + res.status);
                 const files = await res.json();
-                const garageFiles = files.filter(f => f.name.startsWith('garage_'));
-                if (garageFiles.length > 0) {
+                const mountainFiles = files.filter(f => f.name.startsWith('mountain_'));
+                if (mountainFiles.length > 0) {
                     const img = document.getElementById('latest-panorama-img');
-                    img.src = `${workerUrl}/${garageFiles[0].name}`;
+                    img.src = `${workerUrl}/${mountainFiles[0].name}`;
                     img.style.display = 'block';
                     document.getElementById('panorama-loading').style.display = 'none';
-                    document.getElementById('panorama-time').innerText = new Date(garageFiles[0].time).toLocaleString('de-DE');
+                    document.getElementById('panorama-time').innerText = new Date(mountainFiles[0].time).toLocaleString('de-DE');
                 } else {
                     document.getElementById('panorama-loading').innerText = "--";
                     document.getElementById('panorama-time').innerText = "";
@@ -295,7 +294,6 @@ const t = trans[lang];
                 statusDot.className = "status-dot online";
                 statusText.innerText = t.online;
                 let tempsForAvg = [];
-                
                 if (data.weather_station) {
                     const ws = data.weather_station;
                     applyWeatherTone(ws.lux || 0, ws.is_raining);
@@ -336,7 +334,8 @@ const t = trans[lang];
                 if (data.irrigation) {
                     const irr = data.irrigation;
                     document.getElementById('ws-irrigation-today').innerHTML = irr.today != null ? `${Math.floor(irr.today * 60)}<span class="value-unit">m</span>` : '--<span class="value-unit">m</span>';
-                    document.getElementById('ws-irrigation-yesterday').innerText = irr.yesterday != null ? `${(irr.yesterday * 60).toFixed(0)} m` : '-- m';const stateEl = document.getElementById('ws-irrigation-state');
+                    document.getElementById('ws-irrigation-yesterday').innerText = irr.yesterday != null ? `${Math.floor(irr.yesterday * 60)} m` : '-- m';
+                    const stateEl = document.getElementById('ws-irrigation-state');
                     stateEl.innerText = irr.is_active ? t.on : t.off;
                     stateEl.style.color = irr.is_active ? 'var(--success)' : 'var(--text-dim)';
                 }
@@ -354,7 +353,6 @@ const t = trans[lang];
             const d = new Date();
             document.getElementById('system-time').innerText = d.toLocaleTimeString('de-DE', { hour12: false }) + " // UTC" + (d.getTimezoneOffset() / -60 >= 0 ? "+" : "") + (d.getTimezoneOffset() / -60);
         }, 1000);
-        
         fetchStatus();
         fetchLatestCameras();
         setInterval(() => {
