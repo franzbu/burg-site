@@ -12,6 +12,7 @@ const trans = {
         north: "Nord-Fassade", south: "Süd-Fassade", east: "Ost-Fassade", west: "West-Fassade",
         greenhouse: "🌿 Gewächshaus", watchdog: "Heizungs-Watchdog", heatingEnergy: "Heizenergie",
         rainToday: "🌧️ Niederschlag (Heute)", rainYesterday: "Regen Gestern", meteoStatus: "Meteo-Status",
+        irrigationToday: "💦 Gartenberegnung", irrigationYesterday: "Gestern", circuitState: "Ventil-Status",
         sunshineToday: "⏱️ Sonnenscheindauer (Heute)", sensorType: "Sensor-Typ", optical: "Optisch",
         threshold: "Schwelle", stateVectors: "⚡ Sensor-Zustandsvektoren", acuteRain: "Akuter Niederschlag",
         stormDetect: "Sturmwahrnehmung", windSpeed: "💨 Windgeschwindigkeit", humidity: "Luftfeuchtigkeit",
@@ -26,6 +27,7 @@ const trans = {
         north: "North Facade", south: "South Facade", east: "East Facade", west: "West Facade",
         greenhouse: "🌿 Greenhouse", watchdog: "Heating Watchdog", heatingEnergy: "Heating Energy",
         rainToday: "🌧️ Precipitation (Today)", rainYesterday: "Rain Yesterday", meteoStatus: "Meteo Status",
+        irrigationToday: "💦 Garden Irrigation", irrigationYesterday: "Yesterday", circuitState: "Valve Status",
         sunshineToday: "⏱️ Sunshine Duration (Today)", sensorType: "Sensor Type", optical: "Optical",
         threshold: "Threshold", stateVectors: "⚡ Sensor State Vectors", acuteRain: "Acute Rain",
         stormDetect: "Storm Detection", windSpeed: "💨 Wind Speed", humidity: "Humidity",
@@ -40,6 +42,7 @@ const trans = {
         north: "Facciata Nord", south: "Facciata Sud", east: "Facciata Est", west: "Facciata Ovest",
         greenhouse: "🌿 Serra", watchdog: "Watchdog Riscaldamento", heatingEnergy: "Energia Riscaldamento",
         rainToday: "🌧️ Precipitazioni (Oggi)", rainYesterday: "Pioggia Ieri", meteoStatus: "Stato Meteo",
+        irrigationToday: "💦 Irrigazione Giardino", irrigationYesterday: "Ieri", circuitState: "Stato Valvola",
         sunshineToday: "⏱️ Durata Sole (Oggi)", sensorType: "Tipo Sensore", optical: "Ottico",
         threshold: "Soglia", stateVectors: "⚡ Vettori di Stato", acuteRain: "Pioggia in Corso",
         stormDetect: "Rilevamento Tempesta", windSpeed: "💨 Velocità Vento", humidity: "Umidità",
@@ -67,6 +70,7 @@ const t = trans[lang];
     <div id="weather-bg" style="background-image: url('/background.webp');"></div>
 
     <div class="container">
+    
         <header>
             <div class="brand">
                 <h1>{t.head}</h1>
@@ -161,6 +165,21 @@ const t = trans[lang];
                     </div>
                 </div>
             </div>
+            
+            <div class="card col-4 clickable" onclick="openIrrigationStats()">
+                <div class="card-title">{t.irrigationToday}</div>
+                <div class="value-large" id="ws-irrigation-today">--.-<span class="value-unit">m</span></div>
+                <div class="sub-metrics">
+                    <div>
+                        <div class="sub-label">{t.irrigationYesterday}</div>
+                        <div class="sub-value" id="ws-irrigation-yesterday">--.- m</div>
+                    </div>
+                    <div>
+                        <div class="sub-label">{t.circuitState}</div>
+                        <div class="sub-value" id="ws-irrigation-state">--</div>
+                    </div>
+                </div>
+            </div>
 
             <div class="card col-4 clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_total_sunshine_duration')">
                 <div class="card-title">{t.sunshineToday}</div>
@@ -225,6 +244,7 @@ const t = trans[lang];
 
         function openTempStats(entityId) { window.open(`/temp-stats?entity_id=${entityId}`, '_blank'); }
         function openRainStats() { window.open(`/rain-stats`, '_blank'); }
+        function openIrrigationStats() { window.open(`/irrigation-stats`, '_blank'); }
         function openPanoramaStats() { window.open(`/garage-stats`, '_blank'); }
 
         function formatSunshine(minutesTotal) {
@@ -248,8 +268,6 @@ const t = trans[lang];
                 const res = await fetch(`${workerUrl}/history`);
                 if (!res.ok) throw new Error("Worker returned " + res.status);
                 const files = await res.json();
-                
-                // Panorama (Garage) Logic
                 const garageFiles = files.filter(f => f.name.startsWith('garage_'));
                 if (garageFiles.length > 0) {
                     const img = document.getElementById('latest-panorama-img');
@@ -274,10 +292,10 @@ const t = trans[lang];
                 if (data.error) throw new Error(data.error);
                 
                 lastUpdateStr = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                
                 statusDot.className = "status-dot online";
                 statusText.innerText = t.online;
                 let tempsForAvg = [];
+                
                 if (data.weather_station) {
                     const ws = data.weather_station;
                     applyWeatherTone(ws.lux || 0, ws.is_raining);
@@ -296,11 +314,13 @@ const t = trans[lang];
                     document.getElementById('ws-flag-raining').innerText = ws.is_raining ? t.yes : t.no;
                     document.getElementById('ws-flag-storm').innerText = ws.is_stormy ? t.yes : t.no;
                 }
+                
                 ['north', 'south', 'east', 'west'].forEach(dir => {
                     const temp = data[`house_${dir}`]?.temp;
                     if (temp != null) tempsForAvg.push(temp);
                     document.getElementById(`facade-${dir}`).innerText = (temp != null) ? temp.toFixed(1) + '°C' : '--.-°C';
                 });
+                
                 if (data.greenhouse) {
                     const gT = data.greenhouse.temp;
                     document.getElementById('facade-greenhouse').innerHTML = (gT != null) ? `${gT.toFixed(1)}<span class="value-unit" style="color: var(--success);">°C</span>` : '--.-°C';
@@ -312,6 +332,15 @@ const t = trans[lang];
                     const hEnergy = data.greenhouse.heater_energy;
                     energyEl.innerText = (hEnergy != null) ? `${hEnergy.toFixed(2)} kWh` : '--.- kWh';
                 }
+                
+                if (data.irrigation) {
+                    const irr = data.irrigation;
+                    document.getElementById('ws-irrigation-today').innerHTML = irr.today != null ? `${Math.floor(irr.today * 60)}<span class="value-unit">m</span>` : '--<span class="value-unit">m</span>';
+                    document.getElementById('ws-irrigation-yesterday').innerText = irr.yesterday != null ? `${(irr.yesterday * 60).toFixed(0)} m` : '-- m';const stateEl = document.getElementById('ws-irrigation-state');
+                    stateEl.innerText = irr.is_active ? t.on : t.off;
+                    stateEl.style.color = irr.is_active ? 'var(--success)' : 'var(--text-dim)';
+                }
+                
                 if (tempsForAvg.length > 0) {
                     const avg = tempsForAvg.reduce((a, b) => a + b, 0) / tempsForAvg.length;
                     document.getElementById('computed-avg').innerText = `${avg.toFixed(1)} °C`;
@@ -325,6 +354,7 @@ const t = trans[lang];
             const d = new Date();
             document.getElementById('system-time').innerText = d.toLocaleTimeString('de-DE', { hour12: false }) + " // UTC" + (d.getTimezoneOffset() / -60 >= 0 ? "+" : "") + (d.getTimezoneOffset() / -60);
         }, 1000);
+        
         fetchStatus();
         fetchLatestCameras();
         setInterval(() => {
@@ -359,10 +389,8 @@ const t = trans[lang];
         background-repeat: no-repeat;
         transition: filter 3s ease;
     }
-    .clickable { cursor: pointer; transition: background 0.2s, transform 0.2s;
-    }
-    .clickable:hover { background: rgba(255, 255, 255, 0.03); border-color: var(--card-border-hover);
-    }
+    .clickable { cursor: pointer; transition: background 0.2s, transform 0.2s; }
+    .clickable:hover { background: rgba(255, 255, 255, 0.03); border-color: var(--card-border-hover); }
     .clickable:active { transform: scale(0.98); }
     body {
         font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
@@ -383,65 +411,34 @@ const t = trans[lang];
         padding: 4rem 2rem;
         box-sizing: border-box;
     }
-    .container { max-width: 1100px; width: 100%;
-    }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
-    .brand h1 { font-size: 2rem; font-weight: 800;
-    letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .brand p { margin: 0.35rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-weight: 600;
-    font-family: 'JetBrains Mono', monospace; }
-    .status-badge { display: flex; align-items: center; gap: 0.6rem;
-    background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem;
-    font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151;
-    position: relative; }
-    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success);
-    }
-    .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%;
-    background: var(--success); animation: pulse 2s infinite; }
-    @keyframes pulse { 0% { transform: scale(1); opacity: 1;
-    } 100% { transform: scale(3); opacity: 0; } }
-    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr);
-    gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
-    .col-4 { grid-column: span 4;
-    }
-    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.75rem; backdrop-filter: blur(20px);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; display: flex; flex-direction: column;
-    }
-    .card:hover { border-color: var(--card-border-hover); box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7);
-    }
-    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem;
-    }
-    .value-large { font-family: 'JetBrains Mono', monospace; font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; color: var(--text-main); line-height: 1.1;
-    margin: auto 0; text-align: center; }
-    .value-unit { font-size: 1.1rem; color: #4b5563; font-weight: 500; margin-left: 0.25rem;
-    font-family: 'Plus Jakarta Sans', sans-serif; }
-    .sub-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 1.5rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 1.25rem; text-align: center; }
-    .sub-label { font-size: 0.68rem;
-    color: #52525b; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem; letter-spacing: 0.02em; }
-    .sub-value { font-family: 'JetBrains Mono', monospace;
-    font-size: 1.05rem; font-weight: 700; color: var(--text-dim); }
-    .facade-row { display: flex; justify-content: space-between; align-items: center;
-    padding: 0.75rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.03); border-radius: 4px; }
-    .facade-row:last-child { border: none;
-    padding-bottom: 0; }
-    .facade-name { font-size: 0.85rem; font-weight: 600; color: var(--text-dim);
-    }
-    .facade-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.95rem; color: #fff;
-    }
-    footer { margin-top: auto; padding-top: 4rem; display: flex; justify-content: space-between; align-items: center; color: #27272a; font-size: 0.75rem;
-    font-weight: 600; border-top: 1px solid rgba(255, 255, 255, 0.03); width: 100%;
-    }
-    @media (max-width: 992px) { .col-4 { grid-column: span 6;
-    } }
+    .container { max-width: 1100px; width: 100%; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
+    .brand h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .brand p { margin: 0.35rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .status-badge { display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151; position: relative; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success); }
+    .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
+    .col-4 { grid-column: span 4; }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.75rem; backdrop-filter: blur(20px); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+    .card:hover { border-color: var(--card-border-hover); box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7); }
+    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem; }
+    .value-large { font-family: 'JetBrains Mono', monospace; font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; color: var(--text-main); line-height: 1.1; margin: auto 0; text-align: center; }
+    .value-unit { font-size: 1.1rem; color: #4b5563; font-weight: 500; margin-left: 0.25rem; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .sub-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 1.25rem; text-align: center; }
+    .sub-label { font-size: 0.68rem; color: #52525b; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem; letter-spacing: 0.02em; }
+    .sub-value { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 700; color: var(--text-dim); }
+    .facade-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.03); border-radius: 4px; }
+    .facade-row:last-child { border: none; padding-bottom: 0; }
+    .facade-name { font-size: 0.85rem; font-weight: 600; color: var(--text-dim); }
+    .facade-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.95rem; color: #fff; }
+    footer { margin-top: auto; padding-top: 4rem; display: flex; justify-content: space-between; align-items: center; color: #27272a; font-size: 0.75rem; font-weight: 600; border-top: 1px solid rgba(255, 255, 255, 0.03); width: 100%; }
+    @media (max-width: 992px) { .col-4 { grid-column: span 6; } }
     @media (max-width: 768px) {
-        .col-4 { grid-column: span 12;
-        }
-        header { flex-direction: column; align-items: flex-start; gap: 1rem;
-        }
+        .col-4 { grid-column: span 12; }
+        header { flex-direction: column; align-items: flex-start; gap: 1rem; }
         .bento-grid { gap: 1rem; }
     }
 </style>

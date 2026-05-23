@@ -1,0 +1,282 @@
+---
+// src/pages/irrigation-stats.astro
+const acceptLang = Astro.request.headers.get('accept-language') || 'de';
+const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
+const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+
+const trans = {
+    de: {
+        title: "Burg | Bewässerungsstatistik", head: "Burg - Gartenberegnung (LTS)", live: "Live-Betriebszentrum",
+        init: "INITIALISIERE...", loadingData: "Lade Bewässerungsdaten...", back: "Zurück",
+        online: "VERBUNDEN", dailyDist: "📅 Tägliche Beregnung in Minuten",
+        histRain: "📈 Historische Bewässerungsstatistik (LTS)", monthlyDist: "📅 Monatliche Beregnungsdauer",
+        monthsFull: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+    },
+    en: {
+        title: "Burg | Irrigation Stats", head: "Burg - Garden Irrigation (LTS)", live: "Live Operations Center",
+        init: "INITIALIZING...", loadingData: "Loading irrigation data...", back: "Back",
+        online: "CONNECTED", dailyDist: "📅 Daily Irrigation in minutes",
+        histRain: "📈 Historical Irrigation Stats (LTS)", monthlyDist: "📅 Monthly Irrigation Duration",
+        monthsFull: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    },
+    it: {
+        title: "Burg | Statistiche Irrigazione", head: "Burg - Irrigazione Giardino (LTS)", live: "Centro Operativo Live",
+        init: "INIZIALIZZAZIONE...", loadingData: "Caricamento dati irrigazione...", back: "Indietro",
+        online: "CONNESSO", dailyDist: "📅 Irrigazione Giornaliera in minuti",
+        histRain: "📈 Statistiche Storiche Irrigazione (LTS)", monthlyDist: "📅 Durata Mensile Irrigazione",
+        monthsFull: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
+    }
+};
+const t = trans[lang];
+---
+<!DOCTYPE html>
+<html lang={lang}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{t.title}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><rect width='24' height='24' fill='black'/><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+</head>
+<body>
+
+    <div class="floating-back clickable" onclick="if(window.opener){window.close();}else{window.location.href='/';}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span>{t.back}</span>
+    </div>
+
+    <div id="weather-bg" style="background-image: url('/garten_bg.webp');"></div>
+
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h1>{t.head}</h1>
+                <p id="system-time">{t.live}</p>
+            </div>
+            <div class="status-badge">
+                <div id="status-indicator" class="status-dot"></div>
+                <span id="status-text">{t.init}</span>
+            </div>
+        </header>
+
+        <p id="loading" style="color: #9ca3af; font-family: 'JetBrains Mono', monospace;">{t.loadingData}</p>
+
+        <div id="content" style="display:none;">
+            <div class="bento-grid">
+                <div class="card col-12">
+                    <div class="card-title">{t.dailyDist}</div>
+                    <div class="history-chart-grid" id="daily-14d-chart"></div>
+                </div>
+            </div>
+
+            <div id="lts-wrapper"></div>
+        </div>
+    </div>
+
+    <script is:inline set:html={`const t = ${JSON.stringify(t)};`}></script>
+    <script is:inline>
+        const statusDot = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const weatherBg = document.getElementById('weather-bg');
+        
+        function applyWeatherTone(lux, isRaining) {
+            if (!weatherBg) return;
+            const brightness = 0.3 + (Math.log10(Math.max(1, lux)) / 4.5) * 0.7;
+            const saturation = 0.4 + (Math.log10(Math.max(1, lux)) / 4.5) * 0.7;
+            let filterString = `brightness(${Math.min(1.2, brightness).toFixed(2)}) saturate(${Math.min(1.3, saturation).toFixed(2)}) blur(${isRaining ? 8 : 5}px)`;
+            if (isRaining) filterString += ` contrast(0.85) sepia(0.15) hue-rotate(185deg)`;
+            weatherBg.style.filter = filterString;
+        }
+
+        fetch('/api/status')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                statusDot.className = "status-dot online";
+                statusText.innerText = t.online;
+
+                if (data.weather_station) {
+                    applyWeatherTone(data.weather_station.lux || 0, data.weather_station.is_raining);
+                }
+
+                if (data.daily_irr_14d) {
+                    const dChart = document.getElementById('daily-14d-chart');
+                    const maxVal = Math.max(...data.daily_irr_14d.map(d => d.value), 1);
+                    
+                    data.daily_irr_14d.forEach(day => {
+                        const minutes = day.value * 60;
+                        const pct = minutes === 0 ? 0 : Math.max(1, (minutes / (maxVal * 60)) * 100);
+                        dChart.innerHTML += `
+                            <div class="chart-column">
+                                <div class="chart-bar-container">
+                                    <div class="chart-bar" style="height: ${pct}%; background: rgba(56, 189, 248, 0.9);"></div>
+                                </div>
+                                <div class="chart-value">${minutes.toFixed(0)}</div>
+                                <div class="chart-label">${day.date}</div>
+                            </div>
+                        `;
+                    });
+                }
+
+                const ltsWrap = document.getElementById('lts-wrapper');
+                if (data.historical_irr) {
+                    const sortedYears = Object.keys(data.historical_irr).sort((a, b) => b - a);
+                    
+                    sortedYears.forEach(year => {
+                        ltsWrap.innerHTML += `
+                            <h2 class="section-title">${t.histRain}</h2>
+                            <div class="bento-grid">
+                                <div class="card col-12">
+                                    <div class="card-title">${t.monthlyDist} (${year} in h)</div>
+                                    <div class="history-chart-grid" id="chart-${year}"></div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        const target = document.getElementById(`chart-${year}`);
+                        const months = t.monthsFull;
+                        const yearData = data.historical_irr[year];
+                        const maxM = Math.max(...Object.values(yearData).map(v => v || 0), 1);
+
+                        months.forEach((m, idx) => {
+                            const backendMonths = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+                            const val = yearData[backendMonths[idx]];
+                            const hasData = val !== null && val !== undefined;
+                            const pct = (!hasData || val === 0) ? 0 : Math.max(1, (val / maxM) * 100);
+                            
+                            target.innerHTML += `
+                                <div class="chart-column">
+                                    <div class="chart-bar-container" style="${!hasData ? 'border-style:dashed;opacity:0.2' : ''}">
+                                        <div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(56, 189, 248, 0.2), #0ea5e9);"></div>
+                                    </div>
+                                    <div class="chart-value">${hasData ? val.toFixed(1) : '-'}</div>
+                                    <div class="chart-label">${m.substring(0,3)}</div>
+                                </div>
+                            `;
+                        });
+                    });
+                }
+                
+                setTimeout(() => {
+                    document.querySelectorAll('.history-chart-grid').forEach(chart => {
+                        chart.scrollLeft = chart.scrollWidth;
+                    });
+                }, 100);
+            });
+
+        setInterval(() => {
+            const d = new Date();
+            document.getElementById('system-time').innerText = d.toLocaleTimeString('de-DE', { hour12: false }) + " // UTC" + (d.getTimezoneOffset() / -60 >= 0 ? "+" : "") + (d.getTimezoneOffset() / -60);
+        }, 1000);
+    </script>
+</body>
+</html>
+
+<style is:global>
+    :root {
+        --bg: #030303;
+        --card-bg: rgba(14, 14, 14, 0.65);
+        --card-border: rgba(214, 175, 55, 0.09);
+        --card-border-hover: rgba(214, 175, 55, 0.25);
+        --accent: #ca9f1b;
+        --success: #10b981;
+        --text-main: #f3f4f6;
+        --text-muted: #4b5563;
+        --text-dim: #9ca3af;
+    }
+
+    #weather-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -2;
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+        transition: filter 3s ease;
+    }
+
+    .floating-back {
+        position: fixed;
+        top: max(1.5rem, env(safe-area-inset-top));
+        left: max(1.5rem, env(safe-area-inset-left));
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(14, 14, 14, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        backdrop-filter: blur(20px);
+        padding: 0.5rem 1rem 0.5rem 0.5rem;
+        border-radius: 100px;
+        color: var(--text-main);
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
+    }
+    .floating-back:hover {
+        border-color: rgba(214, 175, 55, 0.25);
+        background: rgba(255, 255, 255, 0.05);
+        transform: scale(1.02);
+    }
+    .floating-back:active { transform: scale(0.96); }
+
+    body {
+        font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+        background-color: var(--bg);
+        background-image: 
+            radial-gradient(circle at 0% 0%, rgba(214, 175, 55, 0.04), transparent 45%),
+            radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.02), transparent 45%),
+            linear-gradient(to right, rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+        background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px;
+        background-attachment: fixed;
+        color: var(--text-main);
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 5.5rem 2rem 4rem 2rem;
+        box-sizing: border-box;
+    }
+
+    .container { max-width: 1100px; width: 100%; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
+    .brand h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .brand p { margin: 0.35rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .status-badge { display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151; position: relative; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success); }
+    .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+    .section-title { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); margin: 2rem 0 1rem 0; font-weight: 700; width: 100%; }
+    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
+    .col-12 { grid-column: span 12; }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.75rem; backdrop-filter: blur(20px); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem; }
+    
+    .history-chart-grid { display: flex; flex-wrap: nowrap; gap: 0.75rem; min-height: 140px; align-items: flex-end; padding-top: 1rem; overflow-x: auto; overflow-y: hidden; padding-bottom: 0.5rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.1) transparent; }
+    .history-chart-grid::-webkit-scrollbar { height: 6px; }
+    .history-chart-grid::-webkit-scrollbar-track { background: transparent; }
+    .history-chart-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+    .history-chart-grid::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+    .chart-column { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; min-width: 45px; max-width: 75px; flex: 1 1 0; }
+    .chart-bar-container { width: 100%; height: 120px; background: rgba(255,255,255,0.01); border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden; border: 1px solid rgba(255,255,255,0.02); }
+    .chart-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    .chart-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin: 0.4rem 0 0.15rem 0; white-space: nowrap; }
+    .chart-label { font-size: 0.7rem; text-transform: uppercase; color: #52525b; font-weight: 700; letter-spacing: 0.05em; }
+
+    @media (max-width: 768px) {
+        header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    }
+</style>

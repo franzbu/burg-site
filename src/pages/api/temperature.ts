@@ -10,10 +10,8 @@ export const GET: APIRoute = async ({ request }) => {
     const entityId = url.searchParams.get('entity_id');
     if (!entityId) return new Response(JSON.stringify({ error: "Missing entity_id" }), { status: 400 });
 
-    // Sunshine sensors and Energy counters are cumulative and require subtraction logic
     const isCumulative = entityId.includes('sunshine') || entityId.includes('energy');
     
-    // Explicitly use 'state' for energy counters to avoid offset errors in HA's 'sum' calculation
     let statType = "mean";
     if (entityId.includes('energy')) statType = "state";
     else if (isCumulative) statType = "sum";
@@ -34,35 +32,48 @@ export const GET: APIRoute = async ({ request }) => {
         mtdStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
     }
 
+    // NATIVE CLOUDFLARE WEBSOCKET IMPLEMENTATION
     const fetchLTSViaWebSocket = (): Promise<any> => {
-        return new Promise((resolve, reject) => {
-            const ws = new WebSocket("wss://ha.gitor.uk/api/websocket");
-            let dailyData: any = null, monthlyData: any = null, mtdData: any = null;
-            const timeout = setTimeout(() => { ws.close(); reject(new Error("WebSocket timeout")); }, 8000);
+        return new Promise(async (resolve, reject) => {
+            try {
+                const wsResponse = await fetch("https://ha.gitor.uk/api/websocket", {
+                    headers: { "Upgrade": "websocket", "Connection": "Upgrade" }
+                });
+                
+                const ws = wsResponse.webSocket;
+                if (!ws) { reject(new Error("No websocket")); return; }
+                
+                ws.accept();
 
-            const checkDone = () => {
-                if (dailyData !== null && monthlyData !== null && mtdData !== null) {
-                    clearTimeout(timeout); ws.close();
-                    resolve({ dailyData, monthlyData, mtdData });
-                }
-            };
+                let dailyData: any = null, monthlyData: any = null, mtdData: any = null;
+                const timeout = setTimeout(() => { ws.close(); reject(new Error("WebSocket timeout")); }, 8000);
 
-            ws.addEventListener("message", (event) => {
-                const msg = JSON.parse(event.data as string);
-                if (msg.type === "auth_required") {
-                    ws.send(JSON.stringify({ type: "auth", access_token: HA_TOKEN.trim() }));
-                } else if (msg.type === "auth_ok") {
-                    ws.send(JSON.stringify({ id: 1, type: "recorder/statistics_during_period", start_time: dayStart, end_time: now, statistic_ids: [entityId], period: "day", types: [statType] }));
-                    ws.send(JSON.stringify({ id: 2, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: [entityId], period: "month", types: [statType] }));
-                    ws.send(JSON.stringify({ id: 3, type: "recorder/statistics_during_period", start_time: mtdStart, end_time: now, statistic_ids: [entityId], period: "day", types: [statType] }));
-                } else if (msg.type === "result") {
-                    if (msg.id === 1) dailyData = msg.result || {};
-                    if (msg.id === 2) monthlyData = msg.result || {};
-                    if (msg.id === 3) mtdData = msg.result || {};
-                    checkDone();
-                }
-            });
-            ws.addEventListener("error", () => { clearTimeout(timeout); reject(new Error("WS error")); });
+                const checkDone = () => {
+                    if (dailyData !== null && monthlyData !== null && mtdData !== null) {
+                        clearTimeout(timeout); ws.close();
+                        resolve({ dailyData, monthlyData, mtdData });
+                    }
+                };
+
+                ws.addEventListener("message", (event) => {
+                    const msg = JSON.parse(event.data as string);
+                    if (msg.type === "auth_required") {
+                        ws.send(JSON.stringify({ type: "auth", access_token: HA_TOKEN.trim() }));
+                    } else if (msg.type === "auth_ok") {
+                        ws.send(JSON.stringify({ id: 1, type: "recorder/statistics_during_period", start_time: dayStart, end_time: now, statistic_ids: [entityId], period: "day", types: [statType] }));
+                        ws.send(JSON.stringify({ id: 2, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: [entityId], period: "month", types: [statType] }));
+                        ws.send(JSON.stringify({ id: 3, type: "recorder/statistics_during_period", start_time: mtdStart, end_time: now, statistic_ids: [entityId], period: "day", types: [statType] }));
+                    } else if (msg.type === "result") {
+                        if (msg.id === 1) dailyData = msg.result || {};
+                        if (msg.id === 2) monthlyData = msg.result || {};
+                        if (msg.id === 3) mtdData = msg.result || {};
+                        checkDone();
+                    }
+                });
+                ws.addEventListener("error", () => { clearTimeout(timeout); reject(new Error("WS error")); });
+            } catch (e) {
+                reject(e);
+            }
         });
     };
 
@@ -80,7 +91,6 @@ export const GET: APIRoute = async ({ request }) => {
         } else {
             const result = [];
             for (let i = 1; i < stats.length; i++) {
-                // Dynamically fetch either 'state' or 'sum' based on statType
                 const prev = stats[i - 1][statType] !== undefined && stats[i - 1][statType] !== null ? stats[i - 1][statType] : 0;
                 const curr = stats[i][statType] !== undefined && stats[i][statType] !== null ? stats[i][statType] : 0;
                 const diff = Math.max(0, curr - prev);
