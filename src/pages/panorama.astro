@@ -8,19 +8,22 @@ const trans = {
         title: "Burg | Panorama-Historie", head: "Burg - Panorama (30 Tage)", back: "Zurück", 
         online: "VERBUNDEN", init: "INITIALISIERE...", loading: "Lade Bilder-Historie...",
         deleteAll: "ALLE LÖSCHEN", delete: "LÖSCHEN", confirmDel: "Dieses Bild wirklich löschen?", 
-        confirmDelAll: "WARNUNG: Alle Bilder unwiderruflich löschen?", errPwd: "Fehler beim Löschen."
+        confirmDelAll: "WARNUNG: Alle Bilder unwiderruflich löschen?", errPwd: "Fehler beim Löschen.",
+        loadMore: "3 weitere Bilder", share: "TEILEN", errShare: "Teilen nicht unterstützt oder fehlgeschlagen."
     },
     en: { 
         title: "Burg | Panorama History", head: "Burg - Panorama (30 Days)", back: "Back", 
         online: "CONNECTED", init: "INITIALIZING...", loading: "Loading history...",
         deleteAll: "DELETE ALL", delete: "DELETE", confirmDel: "Are you sure you want to delete this image?", 
-        confirmDelAll: "WARNING: Delete ALL images permanently?", errPwd: "Failed to delete."
+        confirmDelAll: "WARNING: Delete ALL images permanently?", errPwd: "Failed to delete.",
+        loadMore: "3 more images", share: "SHARE", errShare: "Sharing not supported or failed."
     },
     it: { 
         title: "Burg | Cronologia Panorama", head: "Burg - Panorama (30 Giorni)", back: "Indietro", 
         online: "CONNESSO", init: "INIZIALIZZAZIONE...", loading: "Caricamento cronologia...",
         deleteAll: "ELIMINA TUTTO", delete: "ELIMINA", confirmDel: "Sei sicuro di voler eliminare questa immagine?", 
-        confirmDelAll: "ATTENZIONE: Eliminare TUTTE le immagini in modo permanente?", errPwd: "Impossibile eliminare."
+        confirmDelAll: "ATTENZIONE: Eliminare TUTTE le immagini in modo permanente?", errPwd: "Impossibile eliminare.",
+        loadMore: "Altre 3 immagini", share: "CONDIVIDI", errShare: "Condivisione non supportata o fallita."
     }
 };
 
@@ -69,6 +72,12 @@ const t = trans[lang];
 
     <script is:inline set:html={`const t = ${JSON.stringify(t)};`}></script>
     <script is:inline>
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.getElementById('fullscreen-overlay').style.display = 'none';
+            }
+        });
+        
         const weatherBg = document.getElementById('weather-bg');
         
         function applyWeatherTone(lux, isRaining) {
@@ -118,38 +127,98 @@ const t = trans[lang];
             }
         }
 
+        let allFiles = [];
+        let currentRenderCount = 0;
+        const PAGE_SIZE = 3;
+
+        async function shareImage(url, filename) {
+            try {
+                // Fetch the image as a blob to force the device to share the file, not the link
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: filename
+                    });
+                } else {
+                    alert(t.errShare);
+                }
+            } catch (error) {
+                console.error("Error sharing image:", error);
+                alert(t.errShare);
+            }
+        }
+
         async function loadHistory() {
             try {
                 // Only fetches the mountain images from the worker
                 const res = await fetch(`${workerUrl}/history?prefix=mountain_`);
                 if (!res.ok) throw new Error("Worker Error");
-                const files = await res.json();
+                allFiles = await res.json();
                 const gallery = document.getElementById('history-gallery');
-                if (files.length === 0) {
+                if (allFiles.length === 0) {
                     gallery.innerHTML = `<p style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">--</p>`;
                     return;
                 }
-
-                gallery.innerHTML = files.map(file => `
-                    <div class="card col-12" style="margin-bottom: 1.5rem; padding: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                            <div class="card-title" style="color: var(--accent); margin-bottom: 0;">${new Date(file.time).toLocaleString('de-DE')}</div>
-                            <button class="delete-btn" onclick="deleteImage('${file.name}')">${t.delete}</button>
-                        </div>
-                        <img src="${workerUrl}/${file.name}" onclick="event.stopPropagation(); showFullscreen('${workerUrl}/${file.name}')" style="width: 100%; border-radius: 8px; display: block; cursor: zoom-in;" loading="lazy">
-                    </div>
-                `).join('');
+                
+                gallery.innerHTML = ''; // Clear loading text
+                renderNextImages();
             } catch (e) { 
                 document.getElementById('history-gallery').innerHTML = `<p style="color: #ef4444; font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">Fehler beim Laden.</p>`;
             }
         }
-        
+
+        function renderNextImages() {
+            const gallery = document.getElementById('history-gallery');
+            const nextFiles = allFiles.slice(currentRenderCount, currentRenderCount + PAGE_SIZE);
+            
+            // Remove the existing "Load More" button container if it exists
+            const existingBtn = document.getElementById('load-more-btn-container');
+            if (existingBtn) existingBtn.remove();
+
+            const html = nextFiles.map(file => `
+                <div class="card col-12" style="margin-bottom: 1.5rem; padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <div class="card-title" style="color: var(--accent); margin-bottom: 0;">${new Date(file.time).toLocaleString('de-DE')}</div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="delete-btn share-btn" onclick="shareImage('${workerUrl}/${file.name}', '${file.name}')">${t.share}</button>
+                            <button class="delete-btn" onclick="deleteImage('${file.name}')">${t.delete}</button>
+                        </div>
+                    </div>
+                    <img src="${workerUrl}/${file.name}" onclick="event.stopPropagation(); showFullscreen('${workerUrl}/${file.name}')" style="width: 100%; border-radius: 8px; display: block; cursor: zoom-in;" loading="lazy">
+                </div>
+            `).join('');
+            
+            gallery.insertAdjacentHTML('beforeend', html);
+            currentRenderCount += nextFiles.length;
+
+            if (currentRenderCount < allFiles.length) {
+                gallery.insertAdjacentHTML('beforeend', `
+                    <div id="load-more-btn-container" class="col-12" style="display: flex; justify-content: center; margin-top: 0.5rem; margin-bottom: 1.5rem;">
+                        <button class="delete-btn share-btn" style="padding: 0.5rem 1.5rem; font-size: 0.8rem;" onclick="renderNextImages()">${t.loadMore}</button>
+                    </div>
+                `);
+            }
+        }
         loadHistory();
     </script>
 </body>
 </html>
 
 <style is:global>
+    .share-btn {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-main);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+    .share-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+
     :root {
         --bg: #030303;
         --card-bg: rgba(14, 14, 14, 0.65);
