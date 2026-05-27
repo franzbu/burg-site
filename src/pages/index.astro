@@ -237,7 +237,7 @@ const t = trans[lang];
         const statusDot = document.getElementById('status-indicator');
         const statusText = document.getElementById('status-text');
         const weatherBg = document.getElementById('weather-bg');
-        const workerUrl = "https://burg-upload-proxy.csaa6335.workers.dev";
+        const workerUrl = "https://burg-proxy.gitor.uk";
         
         let lastUpdateStr = "";
 
@@ -270,7 +270,14 @@ const t = trans[lang];
                 const mountainFiles = files.filter(f => f.name.startsWith('mountain_'));
                 if (mountainFiles.length > 0) {
                     const img = document.getElementById('latest-panorama-img');
-                    img.src = `${workerUrl}/${mountainFiles[0].name}`;
+                    
+                    // NEW: Dynamic resizing for the tile
+                    // width=600: Limits width to 600px
+                    // quality=75: Reduces file size while maintaining visual clarity
+                    // format=auto: Serves WebP/AVIF if supported by the browser
+                    const params = "width=600,quality=75,format=auto";
+                    img.src = `${workerUrl}/cdn-cgi/image/${params}/${mountainFiles[0].name}`;
+                    
                     img.style.display = 'block';
                     document.getElementById('panorama-loading').style.display = 'none';
                     document.getElementById('panorama-time').innerText = new Date(mountainFiles[0].time).toLocaleString('de-DE');
