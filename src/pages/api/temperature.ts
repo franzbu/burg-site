@@ -21,6 +21,7 @@ export const GET: APIRoute = async ({ request }) => {
     const d = new Date();
 
     let dayStart, monthStart, mtdStart;
+    const hourStart = new Date(nowMs - 48 * 60 * 60 * 1000).toISOString();
 
     if (isCumulative) {
         dayStart = new Date(nowMs - 16 * 24 * 60 * 60 * 1000).toISOString();
@@ -30,6 +31,17 @@ export const GET: APIRoute = async ({ request }) => {
         dayStart = new Date(nowMs - 15 * 24 * 60 * 60 * 1000).toISOString();
         monthStart = new Date("2024-01-01T00:00:00Z").toISOString(); 
         mtdStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
+    }
+
+    // --- STITCH SPLIT-BRAIN SENSORS ---
+    // If West Facade is requested, pull both historical halves to reconstruct the timeline
+    let queryIds = [entityId];
+    if (entityId === 'sensor.temperature_and_humidity_sensor_outdoor_west_temperature' || 
+        entityId === 'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature') {
+        queryIds = [
+            'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature', 
+            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature'
+        ];
     }
 
     // NATIVE CLOUDFLARE WEBSOCKET IMPLEMENTATION
@@ -45,13 +57,13 @@ export const GET: APIRoute = async ({ request }) => {
                 
                 ws.accept();
 
-                let dailyData: any = null, monthlyData: any = null, mtdData: any = null;
+                let dailyData: any = null, monthlyData: any = null, mtdData: any = null, hourlyData: any = null;
                 const timeout = setTimeout(() => { ws.close(); reject(new Error("WebSocket timeout")); }, 8000);
 
                 const checkDone = () => {
-                    if (dailyData !== null && monthlyData !== null && mtdData !== null) {
+                    if (dailyData !== null && monthlyData !== null && mtdData !== null && hourlyData !== null) {
                         clearTimeout(timeout); ws.close();
-                        resolve({ dailyData, monthlyData, mtdData });
+                        resolve({ dailyData, monthlyData, mtdData, hourlyData });
                     }
                 };
 
@@ -60,13 +72,15 @@ export const GET: APIRoute = async ({ request }) => {
                     if (msg.type === "auth_required") {
                         ws.send(JSON.stringify({ type: "auth", access_token: HA_TOKEN.trim() }));
                     } else if (msg.type === "auth_ok") {
-                        ws.send(JSON.stringify({ id: 1, type: "recorder/statistics_during_period", start_time: dayStart, end_time: now, statistic_ids: [entityId], period: "day", types: [statType] }));
-                        ws.send(JSON.stringify({ id: 2, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: [entityId], period: "month", types: [statType] }));
-                        ws.send(JSON.stringify({ id: 3, type: "recorder/statistics_during_period", start_time: mtdStart, end_time: now, statistic_ids: [entityId], period: "day", types: [statType] }));
+                        ws.send(JSON.stringify({ id: 1, type: "recorder/statistics_during_period", start_time: dayStart, end_time: now, statistic_ids: queryIds, period: "day", types: [statType] }));
+                        ws.send(JSON.stringify({ id: 2, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: queryIds, period: "month", types: [statType] }));
+                        ws.send(JSON.stringify({ id: 3, type: "recorder/statistics_during_period", start_time: mtdStart, end_time: now, statistic_ids: queryIds, period: "day", types: [statType] }));
+                        ws.send(JSON.stringify({ id: 4, type: "recorder/statistics_during_period", start_time: hourStart, end_time: now, statistic_ids: queryIds, period: "5minute", types: [statType] }));
                     } else if (msg.type === "result") {
                         if (msg.id === 1) dailyData = msg.result || {};
                         if (msg.id === 2) monthlyData = msg.result || {};
                         if (msg.id === 3) mtdData = msg.result || {};
+                        if (msg.id === 4) hourlyData = msg.result || {};
                         checkDone();
                     }
                 });
@@ -77,17 +91,76 @@ export const GET: APIRoute = async ({ request }) => {
         });
     };
 
-    const { dailyData, monthlyData, mtdData } = await fetchLTSViaWebSocket();
+    const { dailyData, monthlyData, mtdData, hourlyData } = await fetchLTSViaWebSocket();
     const OFFSET_MS = 2 * 60 * 60 * 1000; 
 
-    const extractData = (dataBlock: any, isCumulativeMode: boolean) => {
-        const stats = dataBlock[entityId] || [];
+    const extractData = (dataBlock: any, isCumulativeMode: boolean, expectedIntervalMs: number = 0) => {
+        // Merge the old and new sensor data blocks into a single contiguous timeline
+        let combinedStats: any[] = [];
+        for (const id of queryIds) {
+            if (dataBlock[id]) {
+                combinedStats = combinedStats.concat(dataBlock[id]);
+            }
+        }
+        
+        // Deduplicate and sort chronologically
+        const uniqueMap = new Map();
+        for (const s of combinedStats) {
+            uniqueMap.set(s.start, s);
+        }
+        const stats = Array.from(uniqueMap.values()).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
         if (!isCumulativeMode) {
-            return stats.map((s: any) => {
+            let parsed = stats.map((s: any) => {
                 let val = s.mean !== undefined && s.mean !== null ? s.mean : null;
                 const localDate = new Date(new Date(s.start).getTime() + OFFSET_MS);
                 return { start: localDate.toISOString(), val: val !== null ? parseFloat(Number(val).toFixed(1)) : null };
-            }).filter((s: any) => s.val !== null);
+            });
+
+            // Regenerate missing timeline blocks if HA dropped timestamps due to outages
+            if (expectedIntervalMs > 0 && parsed.length > 0) {
+                const filled = [parsed[0]];
+                for (let i = 1; i < parsed.length; i++) {
+                    let prevTime = new Date(filled[filled.length - 1].start).getTime();
+                    let currTime = new Date(parsed[i].start).getTime();
+                    while (currTime - prevTime > expectedIntervalMs * 1.5) {
+                        prevTime += expectedIntervalMs;
+                        filled.push({ start: new Date(prevTime).toISOString(), val: null });
+                    }
+                    filled.push(parsed[i]);
+                }
+                const nowLocal = Date.now() + OFFSET_MS;
+                let lastTime = new Date(filled[filled.length - 1].start).getTime();
+                while (nowLocal - lastTime > expectedIntervalMs * 1.5) {
+                    lastTime += expectedIntervalMs;
+                    filled.push({ start: new Date(lastTime).toISOString(), val: null });
+                }
+                parsed = filled;
+            }
+
+            // Interpolate (Guesstimate) missing values cleanly
+            for (let i = 0; i < parsed.length; i++) {
+                if (parsed[i].val === null) {
+                    let prevIdx = i - 1;
+                    while (prevIdx >= 0 && parsed[prevIdx].val === null) prevIdx--;
+                    let nextIdx = i + 1;
+                    while (nextIdx < parsed.length && parsed[nextIdx].val === null) nextIdx++;
+
+                    if (prevIdx >= 0 && nextIdx < parsed.length) {
+                        const prevVal = parsed[prevIdx].val;
+                        const nextVal = parsed[nextIdx].val;
+                        const fraction = (i - prevIdx) / (nextIdx - prevIdx);
+                        parsed[i].val = parseFloat((prevVal + (nextVal - prevVal) * fraction).toFixed(1));
+                    } else if (prevIdx >= 0) {
+                        parsed[i].val = parsed[prevIdx].val;
+                    } else if (nextIdx < parsed.length) {
+                        parsed[i].val = parsed[nextIdx].val;
+                    } else {
+                        parsed[i].val = 0;
+                    }
+                }
+            }
+            return parsed;
         } else {
             const result = [];
             for (let i = 1; i < stats.length; i++) {
@@ -101,17 +174,20 @@ export const GET: APIRoute = async ({ request }) => {
         }
     };
 
-    let dailyExtracted = extractData(dailyData, isCumulative);
+    let dailyExtracted = extractData(dailyData, isCumulative, 24 * 60 * 60 * 1000);
     if (isCumulative) dailyExtracted = dailyExtracted.slice(-15);
-    const daily = dailyExtracted.map(d => ({ start: d.start, mean: d.val }));
+    const daily = dailyExtracted.slice(-15).map((d: any) => ({ start: d.start, mean: d.val }));
     
-    let monthly = extractData(monthlyData, isCumulative).map((m: any) => {
+    let hourlyExtracted = extractData(hourlyData, isCumulative, 5 * 60 * 1000);
+    const hourly = hourlyExtracted.map((d: any) => ({ start: d.start, mean: d.val }));
+
+    let monthly = extractData(monthlyData, isCumulative, 0).map((m: any) => {
         const date = new Date(m.start);
         date.setUTCDate(1); 
         return { start: date.toISOString(), mean: m.val };
     });
     
-    const currentMonthDays = extractData(mtdData, isCumulative);
+    const currentMonthDays = extractData(mtdData, isCumulative, 0);
     if (currentMonthDays.length > 0) {
         let mtdVal = 0;
         if (isCumulative) mtdVal = currentMonthDays.reduce((acc: number, curr: any) => acc + curr.val, 0);
@@ -124,7 +200,7 @@ export const GET: APIRoute = async ({ request }) => {
         else monthly.push({ start: currentMonthStartISO, mean: parseFloat(mtdVal.toFixed(1)) }); 
     }
 
-    return new Response(JSON.stringify({ entity: entityId, daily, monthly }), 
+    return new Response(JSON.stringify({ entity: entityId, daily, monthly, hourly }), 
         { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' } });
 
   } catch (error: any) {

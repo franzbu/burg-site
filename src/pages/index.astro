@@ -3,6 +3,7 @@
 const acceptLang = Astro.request.headers.get('accept-language') || 'de';
 const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
 const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+
 const trans = {
     de: {
         title: "Burg | Klimadaten", head: "Burg - Klimadaten", live: "Live-Betriebszentrum",
@@ -110,6 +111,7 @@ const t = trans[lang];
             </div>
 
             <div class="card col-4">
+                <div class="card col-4">
                 <div class="card-title">{t.facades}</div>
                 <div style="margin: auto 0; width: 100%;">
                     <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_north_temperature')">
@@ -124,11 +126,12 @@ const t = trans[lang];
                         <span class="facade-name">{t.east}</span>
                         <span class="facade-val" id="facade-east">--.-°C</span>
                     </div>
-                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature')">
+                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_west_temperature')">
                         <span class="facade-name">{t.west}</span>
                         <span class="facade-val" id="facade-west">--.-°C</span>
                     </div>
                 </div>
+            </div>
             </div>
 
             <div class="card col-4" style="background: radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.04), transparent 60%), var(--card-bg); padding: 0; display: flex; flex-direction: column; overflow: hidden;">
@@ -270,11 +273,6 @@ const t = trans[lang];
                 const mountainFiles = files.filter(f => f.name.startsWith('mountain_'));
                 if (mountainFiles.length > 0) {
                     const img = document.getElementById('latest-panorama-img');
-                    
-                    // NEW: Dynamic resizing for the tile
-                    // width=600: Limits width to 600px
-                    // quality=75: Reduces file size while maintaining visual clarity
-                    // format=auto: Serves WebP/AVIF if supported by the browser
                     const params = "width=600,quality=75,format=auto";
                     img.src = `${workerUrl}/cdn-cgi/image/${params}/${mountainFiles[0].name}`;
                     
@@ -325,7 +323,6 @@ const t = trans[lang];
                     if (temp != null) tempsForAvg.push(temp);
                     document.getElementById(`facade-${dir}`).innerText = (temp != null) ? temp.toFixed(1) + '°C' : '--.-°C';
                 });
-                
                 if (data.greenhouse) {
                     const gT = data.greenhouse.temp;
                     document.getElementById('facade-greenhouse').innerHTML = (gT != null) ? `${gT.toFixed(1)}<span class="value-unit" style="color: var(--success);">°C</span>` : '--.-°C';

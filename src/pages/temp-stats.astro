@@ -9,6 +9,7 @@ const trans = {
         title: "Burg | Historische Daten", head: "Burg - Historische Daten (LTS)", loadData: "Lade Daten...",
         init: "INITIALISIERE...", loadingStats: "Rufe Langzeitstatistiken ab...", back: "Zurück",
         online: "VERBUNDEN", errorNet: "Netzwerkfehler.", errorPrefix: "Fehler: ",
+        last24Hours: "⏱️ Letzte 24 Stunden",
         last15Days: "📅 Letzte 15 Tage (Tageswerte in", histData: "📈 Historische Daten (LTS)",
         monthlyData: "📅 Monatswerte",
         monthsShort: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
@@ -18,6 +19,7 @@ const trans = {
             'sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature': { name: 'Süd-Fassade', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature': { name: 'Ost-Fassade', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature': { name: 'West-Fassade', unit: '°' },
+            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature': { name: 'West-Fassade', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_garten_temperature': { name: 'Gewächshaus (Temperatur)', unit: '°' },
             'sensor.weather_sensor_plus_garten_wind_speed': { name: 'Windgeschwindigkeit', unit: ' km/h' },
             'sensor.weather_sensor_plus_garten_humidity': { name: 'Luftfeuchtigkeit', unit: '%' },
@@ -29,6 +31,7 @@ const trans = {
         title: "Burg | Historical Data", head: "Burg - Historical Data (LTS)", loadData: "Loading Data...",
         init: "INITIALIZING...", loadingStats: "Fetching long-term statistics...", back: "Back",
         online: "CONNECTED", errorNet: "Network Error.", errorPrefix: "Error: ",
+        last24Hours: "⏱️ Last 24 Hours",
         last15Days: "📅 Last 15 Days (Daily values in", histData: "📈 Historical Data (LTS)",
         monthlyData: "📅 Monthly Values",
         monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
@@ -38,6 +41,7 @@ const trans = {
             'sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature': { name: 'South Facade', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature': { name: 'East Facade', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature': { name: 'West Facade', unit: '°' },
+            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature': { name: 'West Facade', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_garten_temperature': { name: 'Greenhouse (Temperature)', unit: '°' },
             'sensor.weather_sensor_plus_garten_wind_speed': { name: 'Wind Speed', unit: ' km/h' },
             'sensor.weather_sensor_plus_garten_humidity': { name: 'Humidity', unit: '%' },
@@ -49,6 +53,7 @@ const trans = {
         title: "Burg | Dati Storici", head: "Burg - Dati Storici (LTS)", loadData: "Caricamento Dati...",
         init: "INIZIALIZZAZIONE...", loadingStats: "Recupero statistiche a lungo termine...", back: "Indietro",
         online: "CONNESSO", errorNet: "Errore di Rete.", errorPrefix: "Errore: ",
+        last24Hours: "⏱️ Ultime 24 Ore",
         last15Days: "📅 Ultimi 15 Giorni (Valori giornalieri in", histData: "📈 Dati Storici (LTS)",
         monthlyData: "📅 Valori Mensili",
         monthsShort: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
@@ -58,6 +63,7 @@ const trans = {
             'sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature': { name: 'Facciata Sud', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature': { name: 'Facciata Est', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature': { name: 'Facciata Ovest', unit: '°' },
+            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature': { name: 'Facciata Ovest', unit: '°' },
             'sensor.temperature_and_humidity_sensor_outdoor_garten_temperature': { name: 'Serra (Temperatura)', unit: '°' },
             'sensor.weather_sensor_plus_garten_wind_speed': { name: 'Velocità Vento', unit: ' km/h' },
             'sensor.weather_sensor_plus_garten_humidity': { name: 'Umidità', unit: '%' },
@@ -105,6 +111,13 @@ const t = trans[lang];
         <p id="error" style="display:none; color: #ef4444; font-family: 'JetBrains Mono', monospace;"></p>
 
         <div id="content" style="display:none;">
+            <div class="bento-grid" id="hourly-section" style="display:none;">
+                <div class="card col-12">
+                    <div class="card-title" id="hourly-title-text"></div>
+                    <div class="history-chart-grid" id="hourlyChart"></div>
+                </div>
+            </div>
+
             <div class="bento-grid" id="daily-section" style="display:none;">
                 <div class="card col-12">
                     <div class="card-title" id="daily-title-text"></div>
@@ -159,6 +172,93 @@ const t = trans[lang];
 
                 const cleanUnit = entityInfo.unit.trim();
                 document.getElementById('daily-title-text').innerText = `${t.last15Days} ${cleanUnit})`;
+
+                const allowedHourlyEntities = [
+                    'sensor.weather_sensor_plus_garten_temperature',
+                    'sensor.temperature_and_humidity_sensor_outdoor_north_temperature',
+                    'sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature',
+                    'sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature',
+                    'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature',
+                    'sensor.temperature_and_humidity_sensor_outdoor_west_temperature',
+                    'sensor.temperature_and_humidity_sensor_outdoor_garten_temperature'
+                ];
+
+                if (allowedHourlyEntities.includes(entity) && data.hourly && data.hourly.length > 0) {
+                    document.getElementById('hourly-title-text').innerText = `${t.last24Hours} (in ${cleanUnit})`;
+                    const hChart = document.getElementById('hourlyChart');
+                    hChart.style.display = 'block';
+                    hChart.style.paddingTop = '0';
+                    
+                    const points = data.hourly;
+                    let maxValH = Math.max(...points.map(d => d.mean));
+                    let minValH = Math.min(...points.map(d => d.mean));
+                    const padding = (maxValH - minValH) * 0.1 || 1;
+                    maxValH += padding;
+                    minValH -= padding;
+                    const rangeH = maxValH - minValH || 1;
+
+                    const svgWidth = 800;
+                    const svgHeight = 140;
+                    
+                    const getY = (temp) => svgHeight - (((temp - minValH) / rangeH) * svgHeight);
+
+                    let pathD = "";
+                    let fillD = "";
+
+                    points.forEach((point, i) => {
+                        const x = (i / (points.length - 1)) * svgWidth;
+                        const y = getY(point.mean);
+                        if (i === 0) {
+                            pathD += `M ${x} ${y} `;
+                            fillD += `M ${x} ${svgHeight} L ${x} ${y} `;
+                        } else {
+                            pathD += `L ${x} ${y} `;
+                            fillD += `L ${x} ${y} `;
+                        }
+                    });
+                    fillD += `L ${svgWidth} ${svgHeight} Z`;
+
+                    let labelsHTML = '';
+                    const numLabels = 24;
+                    const step = Math.max(1, Math.floor(points.length / numLabels));
+                    
+                    for (let i = 0; i < numLabels; i++) {
+                        const pointIdx = Math.min(points.length - 1, (i + 1) * step - 1);
+                        const val = points[pointIdx] ? points[pointIdx].mean.toFixed(1) : '--.-';
+                        labelsHTML += `
+                            <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                                <div class="chart-value" style="margin-top: 0.25rem;">${val}</div>
+                                <div class="chart-label">${i + 1}</div>
+                            </div>
+                        `;
+                    }
+
+                    hChart.innerHTML = `
+                        <div style="width: 100%; min-width: 600px; display: flex; flex-direction: column;">
+                            <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none" style="width: 100%; height: 140px; overflow: visible;">
+                                <defs>
+                                    <linearGradient id="tempGrad" x1="0" y1="${getY(50)}" x2="0" y2="${getY(-20)}" gradientUnits="userSpaceOnUse">
+                                        <stop offset="0%" stop-color="#7f1d1d" />     <stop offset="14.2%" stop-color="#dc2626" />  <stop offset="28.5%" stop-color="#ea580c" />  <stop offset="50%" stop-color="#fde047" />    <stop offset="71.3%" stop-color="#fef08a" />  <stop offset="71.4%" stop-color="#7dd3fc" />  <stop offset="100%" stop-color="#1e3a8a" />   </linearGradient>
+                                    
+                                    <linearGradient id="maskGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="white" stop-opacity="0.4"/>
+                                        <stop offset="100%" stop-color="white" stop-opacity="0.0"/>
+                                    </linearGradient>
+                                    
+                                    <mask id="fadeMask">
+                                        <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="url(#maskGrad)" />
+                                    </mask>
+                                </defs>
+                                <path d="${fillD}" fill="url(#tempGrad)" mask="url(#fadeMask)" />
+                                <path d="${pathD}" fill="none" stroke="url(#tempGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <div style="display: flex; justify-content: space-between; margin-top: 5px; width: 100%;">
+                                ${labelsHTML}
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('hourly-section').style.display = 'block';
+                }
 
                 if (data.daily && data.daily.length > 0) {
                     const dChart = document.getElementById('dailyChart');
@@ -346,7 +446,7 @@ const t = trans[lang];
     .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%;
         background: var(--success); animation: pulse 2s infinite; }
     @keyframes pulse { 0% { transform: scale(1); opacity: 1;
-    } 100% { transform: scale(3); opacity: 0; } }
+        } 100% { transform: scale(3); opacity: 0; } }
     .section-title { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.15em;
         color: var(--accent); margin: 2rem 0 1rem 0; font-weight: 700; width: 100%; }
     .bento-grid { display: grid;
