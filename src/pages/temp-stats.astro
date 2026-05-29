@@ -226,7 +226,8 @@ const t = trans[lang];
                     for (let i = 0; i < numLabels; i++) {
                         const pointIdx = Math.min(points.length - 1, (i + 1) * step - 1);
                         const val = points[pointIdx] ? points[pointIdx].mean.toFixed(1) : '--.-';
-                        const hr = points[pointIdx] ? new Date(points[pointIdx].start).getUTCHours() : '';
+                        // Use native getHours() to automatically parse the UTC string into the correct local time
+                        const hr = points[pointIdx] ? new Date(points[pointIdx].start).getHours() : '';
                         labelsHTML += `
                             <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
                                 <div class="chart-value" style="margin-top: 0.25rem;">${val}</div>
