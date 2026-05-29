@@ -200,6 +200,7 @@ const t = trans[lang];
                     const svgWidth = 800;
                     const svgHeight = 140;
                     
+                    // Maps a temperature to an exact pixel coordinate on the Y axis
                     const getY = (temp) => svgHeight - (((temp - minValH) / rangeH) * svgHeight);
 
                     let pathD = "";
@@ -225,16 +226,17 @@ const t = trans[lang];
                     for (let i = 0; i < numLabels; i++) {
                         const pointIdx = Math.min(points.length - 1, (i + 1) * step - 1);
                         const val = points[pointIdx] ? points[pointIdx].mean.toFixed(1) : '--.-';
+                        const hr = points[pointIdx] ? new Date(points[pointIdx].start).getUTCHours() : '';
                         labelsHTML += `
                             <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
                                 <div class="chart-value" style="margin-top: 0.25rem;">${val}</div>
-                                <div class="chart-label">${i + 1}</div>
+                                <div class="chart-label">${hr}</div>
                             </div>
                         `;
                     }
 
                     hChart.innerHTML = `
-                        <div style="width: 100%; min-width: 600px; display: flex; flex-direction: column;">
+                        <div style="width: 100%; min-width: 1200px; display: flex; flex-direction: column;">
                             <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none" style="width: 100%; height: 140px; overflow: visible;">
                                 <defs>
                                     <linearGradient id="tempGrad" x1="0" y1="${getY(50)}" x2="0" y2="${getY(-20)}" gradientUnits="userSpaceOnUse">
@@ -338,7 +340,27 @@ const t = trans[lang];
 
                 setTimeout(() => {
                     document.querySelectorAll('.history-chart-grid').forEach(chart => {
-                        chart.scrollLeft = chart.scrollWidth;
+                        const columns = chart.querySelectorAll('.chart-column');
+                        let targetCol = null;
+                        
+                        // Find the last column that actually contains data (ignores future empty months)
+                        for (let i = columns.length - 1; i >= 0; i--) {
+                            const valText = columns[i].querySelector('.chart-value').innerText.trim();
+                            if (valText !== '-' && valText !== '--.-') {
+                                targetCol = columns[i];
+                                break;
+                            }
+                        }
+                        
+                        if (targetCol) {
+                            // Calculate how far the target column is outside the visible right edge
+                            const scrollAmount = targetCol.getBoundingClientRect().right - chart.getBoundingClientRect().right;
+                            if (scrollAmount > 0) {
+                                chart.scrollLeft += scrollAmount + 16; // 16px buffer padding
+                            }
+                        } else {
+                            chart.scrollLeft = chart.scrollWidth;
+                        }
                     });
                 }, 100);
 

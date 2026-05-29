@@ -164,7 +164,27 @@ const t = trans[lang];
                 
                 setTimeout(() => {
                     document.querySelectorAll('.history-chart-grid').forEach(chart => {
-                        chart.scrollLeft = chart.scrollWidth;
+                        const columns = chart.querySelectorAll('.chart-column');
+                        let targetCol = null;
+                        
+                        // Find the last column that actually contains data (ignores future empty months)
+                        for (let i = columns.length - 1; i >= 0; i--) {
+                            const valText = columns[i].querySelector('.chart-value').innerText.trim();
+                            if (valText !== '-' && valText !== '--.-') {
+                                targetCol = columns[i];
+                                break;
+                            }
+                        }
+                        
+                        if (targetCol) {
+                            // Calculate how far the target column is outside the visible right edge
+                            const scrollAmount = targetCol.getBoundingClientRect().right - chart.getBoundingClientRect().right;
+                            if (scrollAmount > 0) {
+                                chart.scrollLeft += scrollAmount + 16; // 16px buffer padding
+                            }
+                        } else {
+                            chart.scrollLeft = chart.scrollWidth;
+                        }
                     });
                 }, 100);
             });

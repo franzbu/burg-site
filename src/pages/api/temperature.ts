@@ -12,6 +12,16 @@ export const GET: APIRoute = async ({ request }) => {
 
     const isCumulative = entityId.includes('sunshine') || entityId.includes('energy');
     
+    // --- STITCH SPLIT-BRAIN SENSORS ---
+    let queryIds = [entityId];
+    if (entityId === 'sensor.temperature_and_humidity_sensor_outdoor_west_temperature' || 
+        entityId === 'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature') {
+        queryIds = [
+            'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature', 
+            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature'
+        ];
+    }
+
     let statType = "mean";
     if (entityId.includes('energy')) statType = "state";
     else if (isCumulative) statType = "sum";
@@ -31,17 +41,6 @@ export const GET: APIRoute = async ({ request }) => {
         dayStart = new Date(nowMs - 15 * 24 * 60 * 60 * 1000).toISOString();
         monthStart = new Date("2024-01-01T00:00:00Z").toISOString(); 
         mtdStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
-    }
-
-    // --- STITCH SPLIT-BRAIN SENSORS ---
-    // If West Facade is requested, pull both historical halves to reconstruct the timeline
-    let queryIds = [entityId];
-    if (entityId === 'sensor.temperature_and_humidity_sensor_outdoor_west_temperature' || 
-        entityId === 'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature') {
-        queryIds = [
-            'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature', 
-            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature'
-        ];
     }
 
     // NATIVE CLOUDFLARE WEBSOCKET IMPLEMENTATION
@@ -95,19 +94,12 @@ export const GET: APIRoute = async ({ request }) => {
     const OFFSET_MS = 2 * 60 * 60 * 1000; 
 
     const extractData = (dataBlock: any, isCumulativeMode: boolean, expectedIntervalMs: number = 0) => {
-        // Merge the old and new sensor data blocks into a single contiguous timeline
         let combinedStats: any[] = [];
         for (const id of queryIds) {
-            if (dataBlock[id]) {
-                combinedStats = combinedStats.concat(dataBlock[id]);
-            }
+            if (dataBlock[id]) combinedStats = combinedStats.concat(dataBlock[id]);
         }
-        
-        // Deduplicate and sort chronologically
         const uniqueMap = new Map();
-        for (const s of combinedStats) {
-            uniqueMap.set(s.start, s);
-        }
+        for (const s of combinedStats) uniqueMap.set(s.start, s);
         const stats = Array.from(uniqueMap.values()).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
         if (!isCumulativeMode) {
@@ -117,7 +109,6 @@ export const GET: APIRoute = async ({ request }) => {
                 return { start: localDate.toISOString(), val: val !== null ? parseFloat(Number(val).toFixed(1)) : null };
             });
 
-            // Regenerate missing timeline blocks if HA dropped timestamps due to outages
             if (expectedIntervalMs > 0 && parsed.length > 0) {
                 const filled = [parsed[0]];
                 for (let i = 1; i < parsed.length; i++) {
@@ -138,7 +129,6 @@ export const GET: APIRoute = async ({ request }) => {
                 parsed = filled;
             }
 
-            // Interpolate (Guesstimate) missing values cleanly
             for (let i = 0; i < parsed.length; i++) {
                 if (parsed[i].val === null) {
                     let prevIdx = i - 1;
@@ -179,7 +169,10 @@ export const GET: APIRoute = async ({ request }) => {
     const daily = dailyExtracted.slice(-15).map((d: any) => ({ start: d.start, mean: d.val }));
     
     let hourlyExtracted = extractData(hourlyData, isCumulative, 5 * 60 * 1000);
-    const hourly = hourlyExtracted.map((d: any) => ({ start: d.start, mean: d.val }));
+    const twentyFourHoursAgoShifted = nowMs - (24 * 60 * 60 * 1000) + OFFSET_MS;
+    const hourly = hourlyExtracted
+        .filter((d: any) => new Date(d.start).getTime() >= twentyFourHoursAgoShifted)
+        .map((d: any) => ({ start: d.start, mean: d.val }));
 
     let monthly = extractData(monthlyData, isCumulative, 0).map((m: any) => {
         const date = new Date(m.start);
