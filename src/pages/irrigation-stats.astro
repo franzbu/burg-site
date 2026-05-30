@@ -3,6 +3,7 @@
 const acceptLang = Astro.request.headers.get('accept-language') || 'de';
 const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
 const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+
 const trans = {
     de: {
         title: "Burg | Bewässerungsstatistik", head: "Burg - Gartenberegnung (LTS)", live: "Live-Betriebszentrum",
@@ -109,11 +110,14 @@ const t = trans[lang];
                     
                     data.daily_irr_14d.forEach(day => {
                         const minutes = day.value * 60;
-                        const pct = minutes === 0 ? 0 : Math.max(1, (minutes / (maxVal * 60)) * 100);
+                        const pct = minutes <= 0 ? 0 : Math.max(1, (minutes / (maxVal * 60)) * 100);
+                        // Crucial fix: omit the entire bar element if value is 0
+                        const barHtml = minutes <= 0 ? '' : `<div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(56, 189, 248, 0.2), #38bdf8); opacity: 1.0;"></div>`;
+                        
                         dChart.innerHTML += `
                             <div class="chart-column">
                                 <div class="chart-bar-container">
-                                    <div class="chart-bar" style="height: ${pct}%; background: rgba(56, 189, 248, 0.9);"></div>
+                                    ${barHtml}
                                 </div>
                                 <div class="chart-value">${minutes.toFixed(0)}</div>
                                 <div class="chart-label">${day.date}</div>
@@ -145,12 +149,14 @@ const t = trans[lang];
                             const backendMonths = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
                             const val = yearData[backendMonths[idx]];
                             const hasData = val !== null && val !== undefined && !isNaN(val);
-                            const pct = (!hasData || val === 0) ? 0 : Math.max(1, (val / maxM) * 100);
+                            const pct = (!hasData || val <= 0) ? 0 : Math.max(1, (val / maxM) * 100);
+                            // Crucial fix: omit the entire bar element if value is 0
+                            const barHtml = (!hasData || val <= 0) ? '' : `<div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(30, 58, 138, 0.4), #1e3a8a); opacity: 1.0;"></div>`;
                             
                             target.innerHTML += `
                                 <div class="chart-column">
                                     <div class="chart-bar-container" style="${!hasData ? 'border-style:dashed;opacity:0.2' : ''}">
-                                        <div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(56, 189, 248, 0.2), #0ea5e9);"></div>
+                                        ${barHtml}
                                     </div>
                                     <div class="chart-value">${hasData ? parseFloat(val).toFixed(1) : '-'}</div>
                                     <div class="chart-label">${m.substring(0,3)}</div>
@@ -165,7 +171,6 @@ const t = trans[lang];
                         const columns = chart.querySelectorAll('.chart-column');
                         let targetCol = null;
                         
-                        // Find the last column that actually contains data (ignores future empty months)
                         for (let i = columns.length - 1; i >= 0; i--) {
                             const valText = columns[i].querySelector('.chart-value').innerText.trim();
                             if (valText !== '-' && valText !== '--.-') {
@@ -175,10 +180,9 @@ const t = trans[lang];
                         }
                         
                         if (targetCol) {
-                            // Calculate how far the target column is outside the visible right edge
                             const scrollAmount = targetCol.getBoundingClientRect().right - chart.getBoundingClientRect().right;
                             if (scrollAmount > 0) {
-                                chart.scrollLeft += scrollAmount + 16; // 16px buffer padding
+                                chart.scrollLeft += scrollAmount + 16;
                             }
                         } else {
                             chart.scrollLeft = chart.scrollWidth;
@@ -196,83 +200,15 @@ const t = trans[lang];
 </html>
 
 <style is:global>
-    :root {
-        --bg: #030303;
-        --card-bg: rgba(14, 14, 14, 0.65);
-        --card-border: rgba(214, 175, 55, 0.09);
-        --card-border-hover: rgba(214, 175, 55, 0.25);
-        --accent: #ca9f1b;
-        --success: #10b981;
-        --text-main: #f3f4f6;
-        --text-muted: #4b5563;
-        --text-dim: #9ca3af;
-    }
-
-    #weather-bg {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -2;
-        background-size: cover;
-        background-position: center center;
-        background-repeat: no-repeat;
-        transition: filter 3s ease;
-    }
-
-    .floating-back {
-        position: fixed;
-        top: max(1.5rem, env(safe-area-inset-top));
-        left: max(1.5rem, env(safe-area-inset-left));
-        z-index: 999;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: rgba(14, 14, 14, 0.65);
-        border: 1px solid rgba(255, 255, 255, 0.09);
-        backdrop-filter: blur(20px);
-        padding: 0.5rem 1rem 0.5rem 0.5rem;
-        border-radius: 100px;
-        color: var(--text-main);
-        font-size: 0.8rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        cursor: pointer;
-    }
-    .floating-back:hover {
-        border-color: rgba(214, 175, 55, 0.25);
-        background: rgba(255, 255, 255, 0.05);
-        transform: scale(1.02);
-    }
+    :root { --bg: #030303; --card-bg: rgba(14, 14, 14, 0.65); --card-border: rgba(214, 175, 55, 0.09); --card-border-hover: rgba(214, 175, 55, 0.25); --accent: #ca9f1b; --success: #10b981; --text-main: #f3f4f6; --text-muted: #4b5563; --text-dim: #9ca3af; }
+    #weather-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background-size: cover; background-position: center center; background-repeat: no-repeat; transition: filter 3s ease; }
+    .floating-back { position: fixed; top: max(1.5rem, env(safe-area-inset-top)); left: max(1.5rem, env(safe-area-inset-left)); z-index: 999; display: flex; align-items: center; gap: 0.5rem; background: rgba(14, 14, 14, 0.65); border: 1px solid rgba(255, 255, 255, 0.09); backdrop-filter: blur(20px); padding: 0.5rem 1rem 0.5rem 0.5rem; border-radius: 100px; color: var(--text-main); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
+    .floating-back:hover { border-color: rgba(214, 175, 55, 0.25); background: rgba(255, 255, 255, 0.05); transform: scale(1.02); }
     .floating-back:active { transform: scale(0.96); }
-
-    body {
-        font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-        background-color: var(--bg);
-        background-image: 
-            radial-gradient(circle at 0% 0%, rgba(214, 175, 55, 0.04), transparent 45%),
-            radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.02), transparent 45%),
-            linear-gradient(to right, rgba(255, 255, 255, 0.01) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
-        background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px;
-        background-attachment: fixed;
-        color: var(--text-main);
-        margin: 0;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 5.5rem 2rem 4rem 2rem;
-        box-sizing: border-box;
-    }
-
+    body { font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; background-color: var(--bg); background-image: radial-gradient(circle at 0% 0%, rgba(214, 175, 55, 0.04), transparent 45%), radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.02), transparent 45%), linear-gradient(to right, rgba(255, 255, 255, 0.01) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px); background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px; background-attachment: fixed; color: var(--text-main); margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 5.5rem 2rem 4rem 2rem; box-sizing: border-box; }
     .container { max-width: 1100px; width: 100%; }
     header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
     .brand h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .brand p { margin: 0.35rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
     .status-badge { display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
     .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151; position: relative; }
     .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success); }
@@ -281,22 +217,20 @@ const t = trans[lang];
     .section-title { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); margin: 2rem 0 1rem 0; font-weight: 700; width: 100%; }
     .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; }
     .col-12 { grid-column: span 12; }
-    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.75rem; backdrop-filter: blur(20px); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; padding: 1.75rem; backdrop-filter: blur(20px); position: relative; overflow: hidden; display: flex; flex-direction: column; cursor: default; }
+    .card.clickable { cursor: pointer; transition: background 0.2s, transform 0.2s, border-color 0.4s; }
+    .card.clickable:hover { background: rgba(255, 255, 255, 0.03); border-color: var(--card-border-hover); box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7); }
+    .card.clickable:active { transform: scale(0.98); }
     .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem; }
-    
     .history-chart-grid { display: flex; flex-wrap: nowrap; gap: 0.75rem; min-height: 140px; align-items: flex-end; padding-top: 1rem; overflow-x: auto; overflow-y: hidden; padding-bottom: 0.5rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.1) transparent; }
     .history-chart-grid::-webkit-scrollbar { height: 6px; }
     .history-chart-grid::-webkit-scrollbar-track { background: transparent; }
     .history-chart-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
     .history-chart-grid::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
-
-    .chart-column { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; min-width: 45px; max-width: 75px; flex: 1 1 0; }
+    .chart-column { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 45px; max-width: 75px; flex: 1 1 0; }
     .chart-bar-container { width: 100%; height: 120px; background: rgba(255,255,255,0.01); border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden; border: 1px solid rgba(255,255,255,0.02); }
     .chart-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
     .chart-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin: 0.4rem 0 0.15rem 0; white-space: nowrap; }
     .chart-label { font-size: 0.7rem; text-transform: uppercase; color: #52525b; font-weight: 700; letter-spacing: 0.05em; }
-
-    @media (max-width: 768px) {
-        header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-    }
+    @media (max-width: 768px) { header { flex-direction: column; align-items: flex-start; gap: 1rem; } }
 </style>

@@ -10,7 +10,7 @@ export const GET: APIRoute = async ({ request }) => {
     const entityId = url.searchParams.get('entity_id');
     if (!entityId) return new Response(JSON.stringify({ error: "Missing entity_id" }), { status: 400 });
 
-    const isCumulative = entityId.includes('sunshine') || entityId.includes('energy');
+    const isCumulative = entityId.includes('sunshine') || entityId.includes('energy') || entityId.includes('rain');
     
     // --- STITCH SPLIT-BRAIN SENSORS ---
     let queryIds = [entityId];
@@ -170,8 +170,9 @@ export const GET: APIRoute = async ({ request }) => {
                 const prev = stats[i - 1][statType] !== undefined && stats[i - 1][statType] !== null ? stats[i - 1][statType] : 0;
                 const curr = stats[i][statType] !== undefined && stats[i][statType] !== null ? stats[i][statType] : 0;
                 const diff = Math.max(0, curr - prev);
+                const diffFloat = parseFloat(diff.toFixed(1));
                 
-                result.push({ start: stats[i].start, val: parseFloat(diff.toFixed(1)) });
+                result.push({ start: stats[i].start, val: diffFloat, min: diffFloat, max: diffFloat });
             }
             return result;
         }
@@ -201,6 +202,8 @@ export const GET: APIRoute = async ({ request }) => {
 
         if (isCumulative) {
             mtdVal = currentMonthDays.reduce((acc: number, curr: any) => acc + curr.val, 0);
+            mtdMin = mtdVal; 
+            mtdMax = mtdVal;
         } else {
             mtdVal = currentMonthDays.reduce((acc: number, curr: any) => acc + curr.val, 0) / currentMonthDays.length;
             const validMins = currentMonthDays.map((d: any) => d.min).filter((v: any) => v !== null);
