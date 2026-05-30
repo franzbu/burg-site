@@ -190,8 +190,9 @@ export const GET: APIRoute = async ({ request }) => {
 
     let monthly = extractData(monthlyData, isCumulative, 0).map((m: any) => {
         const date = new Date(m.start);
-        date.setUTCDate(1); 
-        return { start: date.toISOString(), mean: m.val, min: m.min, max: m.max };
+        date.setUTCHours(date.getUTCHours() + 12); // Safely drops into the middle of the correct month
+        const cleanStart = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01T00:00:00.000Z`;
+        return { start: cleanStart, mean: m.val, min: m.min, max: m.max };
     });
     
     const currentMonthDays = extractData(mtdData, isCumulative, 0);

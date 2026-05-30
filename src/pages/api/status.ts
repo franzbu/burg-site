@@ -44,7 +44,7 @@ export const GET: APIRoute = async () => {
                 
                 const ws = wsResponse.webSocket;
                 if (!ws) {
-                    resolve({ dailyData: {}, monthlyData: {}, mtdData: {}, irrDaily: {}, irrHist: {}, outTempDaily: {} });
+                    resolve({ dailyData: {}, monthlyData: {}, mtdData: {}, irrDaily: {}, irrHist: {} });
                     return;
                 }
                 
@@ -52,14 +52,13 @@ export const GET: APIRoute = async () => {
 
                 let dailyData: any = null, monthlyData: any = null, mtdData: any = null;
                 let irrDaily: any = null, irrHist: any = null;
-                let outTempDaily: any = null;
                 
-                const timeout = setTimeout(() => { ws.close(); resolve({ dailyData: {}, monthlyData: {}, mtdData: {}, irrDaily: {}, irrHist: {}, outTempDaily: {} }); }, 8000);
+                const timeout = setTimeout(() => { ws.close(); resolve({ dailyData: {}, monthlyData: {}, mtdData: {}, irrDaily: {}, irrHist: {} }); }, 8000);
 
                 const checkDone = () => {
-                    if (dailyData && monthlyData && mtdData && irrDaily && irrHist && outTempDaily) {
+                    if (dailyData && monthlyData && mtdData && irrDaily && irrHist) {
                         clearTimeout(timeout); ws.close();
-                        resolve({ dailyData, monthlyData, mtdData, irrDaily, irrHist, outTempDaily });
+                        resolve({ dailyData, monthlyData, mtdData, irrDaily, irrHist });
                     }
                 };
 
@@ -72,32 +71,24 @@ export const GET: APIRoute = async () => {
                         ws.send(JSON.stringify({ id: 3, type: "recorder/statistics_during_period", start_time: mtdStart, end_time: now, statistic_ids: [TOTAL_RAIN_ID], period: "day", types: ["sum"] }));
                         ws.send(JSON.stringify({ id: 4, type: "recorder/statistics_during_period", start_time: dayStart, end_time: now, statistic_ids: [IRRIGATION_ID], period: "day", types: ["max"] }));
                         ws.send(JSON.stringify({ id: 5, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: [IRRIGATION_ID], period: "day", types: ["max"] }));
-                        ws.send(JSON.stringify({ id: 6, type: "recorder/statistics_during_period", start_time: dayStart, end_time: now, statistic_ids: ["sensor.weather_sensor_plus_garten_temperature"], period: "day", types: ["min", "max"] }));
                     } else if (msg.type === "result") {
                         if (msg.id === 1) dailyData = msg.result || {};
                         if (msg.id === 2) monthlyData = msg.result || {};
                         if (msg.id === 3) mtdData = msg.result || {};
                         if (msg.id === 4) irrDaily = msg.result || {};
                         if (msg.id === 5) irrHist = msg.result || {};
-                        if (msg.id === 6) outTempDaily = msg.result || {};
                         checkDone();
                     }
                 });
-                ws.addEventListener("error", () => { clearTimeout(timeout); resolve({ dailyData: {}, monthlyData: {}, mtdData: {}, irrDaily: {}, irrHist: {}, outTempDaily: {} }); });
+                ws.addEventListener("error", () => { clearTimeout(timeout); resolve({ dailyData: {}, monthlyData: {}, mtdData: {}, irrDaily: {}, irrHist: {} }); });
             } catch (e) {
-                resolve({ dailyData: {}, monthlyData: {}, mtdData: {}, irrDaily: {}, irrHist: {}, outTempDaily: {} });
+                resolve({ dailyData: {}, monthlyData: {}, mtdData: {}, irrDaily: {}, irrHist: {} });
             }
         });
     };
 
-    const { dailyData, monthlyData, mtdData, irrDaily, irrHist, outTempDaily } = await fetchLTS();
+    const { dailyData, monthlyData, mtdData, irrDaily, irrHist } = await fetchLTS();
     const OFFSET_MS = 2 * 60 * 60 * 1000; 
-
-    // Extract exact daily min/max for the Outdoor Temperature tile
-    const outStats = outTempDaily && outTempDaily["sensor.weather_sensor_plus_garten_temperature"] ? outTempDaily["sensor.weather_sensor_plus_garten_temperature"] : [];
-    const todayOutStat = outStats.length > 0 ? outStats[outStats.length - 1] : null;
-    const outMin = todayOutStat && todayOutStat.min !== undefined && todayOutStat.min !== null ? parseFloat(todayOutStat.min.toFixed(1)) : null;
-    const outMax = todayOutStat && todayOutStat.max !== undefined && todayOutStat.max !== null ? parseFloat(todayOutStat.max.toFixed(1)) : null;
 
     // --- Strictly Aligned Logbook Backfill ---
     let dailyRawCalc: Record<string, number> = {};
@@ -162,10 +153,12 @@ export const GET: APIRoute = async () => {
     };
 
     const dailyRain = extractDiffs(dailyData, TOTAL_RAIN_ID).slice(-15);
+    
     let monthlyRain = extractDiffs(monthlyData, TOTAL_RAIN_ID).map((m: any) => {
         const date = new Date(m.start);
-        date.setUTCDate(1); 
-        return { start: date.toISOString(), val: m.val };
+        date.setUTCHours(date.getUTCHours() + 12);
+        const cleanStart = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01T00:00:00.000Z`;
+        return { start: cleanStart, val: m.val };
     });
     
     const currentMonthDays = extractDiffs(mtdData, TOTAL_RAIN_ID);
@@ -263,9 +256,7 @@ export const GET: APIRoute = async () => {
       weather_station: {
         ...mpStates.weather_station,
         rain_yesterday: mpStates.weather_station?.rain_yesterday ?? getHAState('sensor.weather_sensor_plus_garten_yesterday_s_rain'),
-        sunshine_duration: mpStates.weather_station?.sunshine_duration ?? getHAState('sensor.weather_sensor_plus_garten_today_s_sunshine_duration'),
-        temp_min: outMin,
-        temp_max: outMax
+        sunshine_duration: mpStates.weather_station?.sunshine_duration ?? getHAState('sensor.weather_sensor_plus_garten_today_s_sunshine_duration')
       },
       house_north: { temp: mpStates.house_north?.temp ?? null }, 
       house_south: { temp: mpStates.house_south?.temp ?? null }, 
