@@ -92,7 +92,6 @@ export const GET: APIRoute = async ({ request }) => {
     };
 
     const { dailyData, monthlyData, mtdData, hourlyData } = await fetchLTSViaWebSocket();
-    const OFFSET_MS = 2 * 60 * 60 * 1000; 
 
     const extractData = (dataBlock: any, isCumulativeMode: boolean, expectedIntervalMs: number = 0) => {
         let combinedStats: any[] = [];
@@ -108,9 +107,9 @@ export const GET: APIRoute = async ({ request }) => {
                 let val = s.mean !== undefined && s.mean !== null ? s.mean : null;
                 let min = s.min !== undefined && s.min !== null ? s.min : val;
                 let max = s.max !== undefined && s.max !== null ? s.max : val;
-                const localDate = new Date(new Date(s.start).getTime() + OFFSET_MS);
+                
                 return { 
-                    start: localDate.toISOString(), 
+                    start: s.start, 
                     val: val !== null ? parseFloat(Number(val).toFixed(1)) : null,
                     min: min !== null ? parseFloat(Number(min).toFixed(1)) : null,
                     max: max !== null ? parseFloat(Number(max).toFixed(1)) : null
@@ -128,9 +127,9 @@ export const GET: APIRoute = async ({ request }) => {
                     }
                     filled.push(parsed[i]);
                 }
-                const nowLocal = Date.now() + OFFSET_MS;
+                const nowUTC = Date.now();
                 let lastTime = new Date(filled[filled.length - 1].start).getTime();
-                while (nowLocal - lastTime > expectedIntervalMs * 1.5) {
+                while (nowUTC - lastTime > expectedIntervalMs * 1.5) {
                     lastTime += expectedIntervalMs;
                     filled.push({ start: new Date(lastTime).toISOString(), val: null, min: null, max: null });
                 }
@@ -171,8 +170,8 @@ export const GET: APIRoute = async ({ request }) => {
                 const prev = stats[i - 1][statType] !== undefined && stats[i - 1][statType] !== null ? stats[i - 1][statType] : 0;
                 const curr = stats[i][statType] !== undefined && stats[i][statType] !== null ? stats[i][statType] : 0;
                 const diff = Math.max(0, curr - prev);
-                const localDate = new Date(new Date(stats[i].start).getTime() + OFFSET_MS);
-                result.push({ start: localDate.toISOString(), val: parseFloat(diff.toFixed(1)) });
+                
+                result.push({ start: stats[i].start, val: parseFloat(diff.toFixed(1)) });
             }
             return result;
         }
@@ -183,9 +182,9 @@ export const GET: APIRoute = async ({ request }) => {
     const daily = dailyExtracted.slice(-15).map((d: any) => ({ start: d.start, mean: d.val, min: d.min, max: d.max }));
     
     let hourlyExtracted = extractData(hourlyData, isCumulative, 5 * 60 * 1000);
-    const twentyFourHoursAgoShifted = nowMs - (24 * 60 * 60 * 1000) + OFFSET_MS;
+    const twentyFourHoursAgo = nowMs - (24 * 60 * 60 * 1000);
     const hourly = hourlyExtracted
-        .filter((d: any) => new Date(d.start).getTime() >= twentyFourHoursAgoShifted)
+        .filter((d: any) => new Date(d.start).getTime() >= twentyFourHoursAgo)
         .map((d: any) => ({ start: d.start, mean: d.val, min: d.min, max: d.max }));
 
     let monthly = extractData(monthlyData, isCumulative, 0).map((m: any) => {
