@@ -30,7 +30,6 @@ export const GET: APIRoute = async () => {
     const monthStart = new Date("2023-12-01T00:00:00Z").toISOString();
     const mtdStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)).toISOString();
 
-    // Reverted to monthStart to guarantee full long-term history is fetched
     const [haResponse, mpResponse, switchHistoryRes, acuteRainHistoryRes] = await Promise.all([
       fetch(`${HA_BASE}/states`, { headers: { 'Authorization': `Bearer ${HA_TOKEN.trim()}` } }),
       fetch(MP_URL, { headers: { 'CF-Access-Client-Id': CF_CLIENT_ID.trim(), 'CF-Access-Client-Secret': CF_CLIENT_SECRET.trim() } }),
@@ -178,7 +177,6 @@ export const GET: APIRoute = async () => {
     });
     combinedRainHistory.sort((a, b) => new Date(a.last_changed || a.last_updated).getTime() - new Date(b.last_changed || b.last_updated).getTime());
 
-    // ROOT CAUSE FIX: Isolate the exact timestamp the sensor started recording data.
     let sensorCreationTime = nowMs;
     if (combinedRainHistory.length > 0) {
         sensorCreationTime = new Date(combinedRainHistory[0].last_changed || combinedRainHistory[0].last_updated).getTime();
@@ -253,8 +251,6 @@ export const GET: APIRoute = async () => {
     });
 
     const historicalAcuteRain: any = {};
-    
-    // ROOT CAUSE FIX: Start timeline organically at sensor creation time. Never generate empty years.
     const startD = new Date(sensorCreationTime);
     startD.setUTCDate(1);
     startD.setUTCHours(0, 0, 0, 0);
@@ -391,6 +387,23 @@ export const GET: APIRoute = async () => {
     const irrYesterday = dailyIrr14d[13].value;
     let irrToday = getHAState('sensor.garten_board_on_time_daily');
     if (irrToday === null || isNaN(irrToday)) irrToday = dailyIrr14d[14].value;
+
+    // --- Clean Backend Data Normalization (Fixes HA's UTC LTS bucket overlap) ---
+    const ltsTodayVal = dailyIrr14d[14].value;
+    if (irrToday !== null && ltsTodayVal !== irrToday) {
+        const discrepancy = ltsTodayVal - irrToday;
+        dailyIrr14d[14].value = irrToday;
+
+        const currentY = d.getUTCFullYear();
+        const monthName = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'][d.getUTCMonth()];
+        
+        if (monthlyIrrArchive[currentY] && monthlyIrrArchive[currentY][monthName] != null) {
+            monthlyIrrArchive[currentY][monthName] -= discrepancy;
+            if (monthlyIrrArchive[currentY][monthName] < 0) monthlyIrrArchive[currentY][monthName] = 0;
+            monthlyIrrArchive[currentY][monthName] = parseFloat(monthlyIrrArchive[currentY][monthName].toFixed(1));
+        }
+    }
+    // -----------------------------------------------------------------------------
 
     return new Response(JSON.stringify({
       weather_station: {
