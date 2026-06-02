@@ -18,7 +18,13 @@ const trans = {
         stormDetect: "Sturmwahrnehmung", windSpeed: "💨 Windgeschwindigkeit", humidity: "Luftfeuchtigkeit",
         online: "WETTERSTATION ONLINE", error: "KONNEKTIVITÄTSFEHLER",
         storm: "STURM", rain: "REGEN", clear: "KLAR", yes: "JA", no: "NEIN", on: "EIN", off: "AUS",
-        panorama: "⛰️ Panorama"
+        panorama: "⛰️ Panorama",
+        ttMin: "Tiefsttemperatur (seit 00:00 Uhr)", ttMax: "Höchsttemperatur (seit 00:00 Uhr)",
+        ttCurr: "Aktueller Messwert", ttAvg: "Durchschnitt aus Außentemperatur und Hausfassaden-Temperaturen", ttLux: "Aktuelle Lichtintensität",
+        ttRainT: "Gesamtniederschlag heute", ttRainY: "Gesamtniederschlag gestern",
+        ttIrrT: "Heutige Beregnungsdauer", ttIrrY: "Gestrige Beregnungsdauer",
+        ttSun: "Heutige Sonnenscheindauer", ttWind: "Aktuelle Windgeschwindigkeit",
+        ttHum: "Aktuelle relative Luftfeuchtigkeit", ttEnergy: "Gesamtenergieverbrauch"
     },
     en: {
         title: "Burg | Climate Data", head: "Burg - Climate Data", live: "Live Operations Center",
@@ -33,7 +39,13 @@ const trans = {
         stormDetect: "Storm Detection", windSpeed: "💨 Wind Speed", humidity: "Humidity",
         online: "WEATHER STATION ONLINE", error: "CONNECTION ERROR",
         storm: "STORM", rain: "RAIN", clear: "CLEAR", yes: "YES", no: "NO", on: "ON", off: "OFF",
-        panorama: "⛰️ Panorama"
+        panorama: "⛰️ Panorama",
+        ttMin: "Minimum temperature (since 12 AM)", ttMax: "Maximum temperature (since 12 AM)",
+        ttCurr: "Current reading", ttAvg: "Average of outdoor temperature and house facade temperatures", ttLux: "Current light intensity",
+        ttRainT: "Total precipitation today", ttRainY: "Total precipitation yesterday",
+        ttIrrT: "Today's irrigation duration", ttIrrY: "Yesterday's irrigation duration",
+        ttSun: "Today's sunshine duration", ttWind: "Current wind speed",
+        ttHum: "Current relative humidity", ttEnergy: "Total energy consumption"
     },
     it: {
         title: "Burg | Dati Climatici", head: "Burg - Dati Climatici", live: "Centro Operativo Live",
@@ -48,7 +60,13 @@ const trans = {
         stormDetect: "Rilevamento Tempesta", windSpeed: "💨 Velocità Vento", humidity: "Umidità",
         online: "STAZIONE METEO ONLINE", error: "ERRORE DI CONNESSIONE",
         storm: "TEMPESTA", rain: "PIOGGIA", clear: "SERENO", yes: "SÌ", no: "NO", on: "ON", off: "OFF",
-        panorama: "⛰️ Panorama"
+        panorama: "⛰️ Panorama",
+        ttMin: "Temperatura minima (dalle 00:00)", ttMax: "Temperatura massima (dalle 00:00)",
+        ttCurr: "Valore attuale", ttAvg: "Media della temperatura esterna e delle temperature delle facciate", ttLux: "Intensità luminosa attuale",
+        ttRainT: "Precipitazioni totali oggi", ttRainY: "Precipitazioni totali ieri",
+        ttIrrT: "Durata irrigazione oggi", ttIrrY: "Durata irrigazione ieri",
+        ttSun: "Durata sole oggi", ttWind: "Velocità del vento attuale",
+        ttHum: "Umidità relativa attuale", ttEnergy: "Consumo energetico totale"
     }
 };
 const t = trans[lang];
@@ -70,6 +88,7 @@ const t = trans[lang];
     <div id="weather-bg" style="background-image: url('/background.webp');"></div>
 
     <div class="container">
+        
         <header>
             <div class="brand">
                 <h1>{t.head}</h1>
@@ -97,20 +116,22 @@ const t = trans[lang];
             <div class="card col-4" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_temperature')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
                     <div class="card-title">{t.outdoor}</div>
-                    <div class="value-large" id="ws-temp" style="margin-bottom: 0;">--.-<span class="value-unit">°C</span></div>
-                    <div style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 700; margin-bottom: auto; margin-top: 0.25rem;">
-                        <span id="ws-temp-min" style="color: #3b82f6;">--.-°</span> | <span id="ws-temp-max" style="color: #ef4444;">--.-°</span>
+                    <div class="value-large" id="ws-temp" title={t.ttCurr} style="margin-bottom: 0;">--.-<span class="value-unit">°C</span></div>
+                    <div style="display: flex; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700; margin-bottom: auto; margin-top: 0.25rem;">
+                        <div style="flex: 1; text-align: center; color: #3b82f6;" id="ws-temp-min" title={t.ttMin}>--.-°</div>
+                        <div style="color: var(--text-muted); font-size: 1rem; align-self: center;">|</div>
+                        <div style="flex: 1; text-align: center; color: #ef4444;" id="ws-temp-max" title={t.ttMax}>--.-°</div>
                     </div>
                 </div>
                 <div class="clickable" onclick="openLuxStats()" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
                     <div class="sub-metrics" style="margin: auto 0; border-top: none; padding-top: 0;">
                         <div>
                             <div class="sub-label">{t.sysAvg}</div>
-                            <div class="sub-value" id="computed-avg" style="color: var(--accent);">--.- °C</div>
+                            <div class="sub-value" id="computed-avg" title={t.ttAvg} style="color: var(--accent);">--.- °C</div>
                         </div>
                         <div>
                             <div class="sub-label">{t.brightness}</div>
-                            <div class="sub-value" id="ws-lux">-- lx</div>
+                            <div class="sub-value" id="ws-lux" title={t.ttLux}>-- lx</div>
                         </div>
                     </div>
                 </div>
@@ -121,19 +142,19 @@ const t = trans[lang];
                 <div style="margin: auto 0; width: 100%;">
                     <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_north_temperature')">
                         <span class="facade-name">{t.north}</span>
-                        <span class="facade-val" id="facade-north">--.-°C</span>
+                        <span class="facade-val" id="facade-north" title={t.ttCurr}>--.-°C</span>
                     </div>
                     <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature')">
                         <span class="facade-name">{t.south}</span>
-                        <span class="facade-val" id="facade-south">--.-°C</span>
+                        <span class="facade-val" id="facade-south" title={t.ttCurr}>--.-°C</span>
                     </div>
                     <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature')">
                         <span class="facade-name">{t.east}</span>
-                        <span class="facade-val" id="facade-east">--.-°C</span>
+                        <span class="facade-val" id="facade-east" title={t.ttCurr}>--.-°C</span>
                     </div>
                     <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_west_temperature')">
                         <span class="facade-name">{t.west}</span>
-                        <span class="facade-val" id="facade-west">--.-°C</span>
+                        <span class="facade-val" id="facade-west" title={t.ttCurr}>--.-°C</span>
                     </div>
                 </div>
             </div>
@@ -141,7 +162,12 @@ const t = trans[lang];
             <div class="card col-4" style="background: radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.04), transparent 60%), var(--card-bg); padding: 0; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_garten_temperature')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
                     <div class="card-title" style="color: var(--success);">{t.greenhouse}</div>
-                    <div class="value-large" id="facade-greenhouse">--.-<span class="value-unit" style="color: var(--success);">°C</span></div>
+                    <div class="value-large" id="facade-greenhouse" title={t.ttCurr} style="margin-bottom: 0;">--.-<span class="value-unit" style="color: var(--success);">°C</span></div>
+                    <div style="display: flex; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700; margin-bottom: auto; margin-top: 0.25rem;">
+                        <div style="flex: 1; text-align: center; color: #3b82f6;" id="gh-temp-min" title={t.ttMin}>--.-°</div>
+                        <div style="color: var(--text-muted); font-size: 1rem; align-self: center;">|</div>
+                        <div style="flex: 1; text-align: center; color: #ef4444;" id="gh-temp-max" title={t.ttMax}>--.-°</div>
+                    </div>
                 </div>
                 <div class="clickable" onclick="openTempStats('sensor.switching_and_measuring_cable_outdoor_energy_counter')" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
                     <div class="sub-metrics" style="border-color: rgba(16, 185, 129, 0.1); margin: auto 0; border-top: none; padding-top: 0;">
@@ -151,7 +177,7 @@ const t = trans[lang];
                         </div>
                         <div>
                             <div class="sub-label">{t.heatingEnergy}</div>
-                            <div class="sub-value" id="ws-heater-energy">--.- kWh</div>
+                            <div class="sub-value" id="ws-heater-energy" title={t.ttEnergy}>--.- kWh</div>
                         </div>
                     </div>
                 </div>
@@ -159,11 +185,11 @@ const t = trans[lang];
 
             <div class="card col-4 clickable" onclick="openRainStats()">
                 <div class="card-title">{t.rainToday}</div>
-                <div class="value-large" id="ws-rain-today">--.-<span class="value-unit">mm</span></div>
+                <div class="value-large" id="ws-rain-today" title={t.ttRainT}>--.-<span class="value-unit">mm</span></div>
                 <div class="sub-metrics">
                     <div>
                         <div class="sub-label">{t.rainYesterday}</div>
-                        <div class="sub-value" id="ws-rain-yesterday">--.- mm</div>
+                        <div class="sub-value" id="ws-rain-yesterday" title={t.ttRainY}>--.- mm</div>
                     </div>
                     <div>
                         <div class="sub-label">{t.meteoStatus}</div>
@@ -174,11 +200,11 @@ const t = trans[lang];
             
             <div class="card col-4 clickable" onclick="openIrrigationStats()">
                 <div class="card-title">{t.irrigationToday}</div>
-                <div class="value-large" id="ws-irrigation-today">--.-<span class="value-unit">m</span></div>
+                <div class="value-large" id="ws-irrigation-today" title={t.ttIrrT}>--.-<span class="value-unit">m</span></div>
                 <div class="sub-metrics">
                     <div>
                         <div class="sub-label">{t.irrigationYesterday}</div>
-                        <div class="sub-value" id="ws-irrigation-yesterday">--.- m</div>
+                        <div class="sub-value" id="ws-irrigation-yesterday" title={t.ttIrrY}>--.- m</div>
                     </div>
                     <div>
                         <div class="sub-label">{t.circuitState}</div>
@@ -189,7 +215,7 @@ const t = trans[lang];
 
             <div class="card col-4 clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_total_sunshine_duration')">
                 <div class="card-title">{t.sunshineToday}</div>
-                <div class="value-large" id="ws-sunshine">--<span class="value-unit">h</span> --<span class="value-unit">m</span></div>
+                <div class="value-large" id="ws-sunshine" title={t.ttSun}>--<span class="value-unit">h</span> --<span class="value-unit">m</span></div>
                 <div class="sub-metrics">
                     <div>
                         <div class="sub-label">{t.sensorType}</div>
@@ -202,7 +228,7 @@ const t = trans[lang];
                 </div>
             </div>
 
-            <div class="card col-4">
+            <div class="card col-4 clickable" onclick="openAcuteRainStats()">
                 <div class="card-title">{t.stateVectors}</div>
                 <div style="margin: auto 0; width: 100%;">
                     <div class="facade-row">
@@ -219,13 +245,13 @@ const t = trans[lang];
             <div class="card col-4" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_wind_speed')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
                     <div class="card-title">{t.windSpeed}</div>
-                    <div class="value-large" id="ws-wind">--.-<span class="value-unit">km/h</span></div>
+                    <div class="value-large" id="ws-wind" title={t.ttWind}>--.-<span class="value-unit">km/h</span></div>
                 </div>
                 <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_humidity')" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
                     <div class="sub-metrics" style="margin: auto 0; border-top: none; padding-top: 0;">
                         <div>
                             <div class="sub-label">{t.humidity}</div>
-                            <div class="sub-value" id="ws-hum">-- %</div>
+                            <div class="sub-value" id="ws-hum" title={t.ttHum}>-- %</div>
                         </div>
                         <div></div>
                     </div>
@@ -253,6 +279,7 @@ const t = trans[lang];
         function openIrrigationStats() { window.open(`/irrigation-stats`, '_blank'); }
         function openPanoramaStats() { window.open(`/panorama`, '_blank'); }
         function openLuxStats() { window.open(`/lux-stats?entity_id=sensor.weather_sensor_plus_garten_illumination`, '_blank'); }
+        function openAcuteRainStats() { window.open(`/acute_rain-stats`, '_blank'); }
 
         function formatSunshine(minutesTotal) {
             const h = Math.floor(minutesTotal / 60);
@@ -311,8 +338,8 @@ const t = trans[lang];
                         tempsForAvg.push(ws.temp);
                         document.getElementById('ws-temp').innerHTML = `${ws.temp.toFixed(1)}<span class="value-unit">°C</span>`;
                     }
-                    if (ws.temp_max != null) document.getElementById('ws-temp-max').innerText = `${ws.temp_max.toFixed(1)}°`;
                     if (ws.temp_min != null) document.getElementById('ws-temp-min').innerText = `${ws.temp_min.toFixed(1)}°`;
+                    if (ws.temp_max != null) document.getElementById('ws-temp-max').innerText = `${ws.temp_max.toFixed(1)}°`;
                     
                     document.getElementById('ws-hum').innerText = ws.hum != null ? `${Math.round(ws.hum)} %` : '-- %';
                     document.getElementById('ws-wind').innerHTML = ws.wind != null ? `${ws.wind.toFixed(1)}<span class="value-unit">km/h</span>` : '--.-';
@@ -334,6 +361,10 @@ const t = trans[lang];
                 if (data.greenhouse) {
                     const gT = data.greenhouse.temp;
                     document.getElementById('facade-greenhouse').innerHTML = (gT != null) ? `${gT.toFixed(1)}<span class="value-unit" style="color: var(--success);">°C</span>` : '--.-°C';
+                    
+                    if (data.greenhouse.temp_min != null) document.getElementById('gh-temp-min').innerText = `${data.greenhouse.temp_min.toFixed(1)}°`;
+                    if (data.greenhouse.temp_max != null) document.getElementById('gh-temp-max').innerText = `${data.greenhouse.temp_max.toFixed(1)}°`;
+                    
                     const watchdogEl = document.getElementById('ws-watchdog');
                     const isActive = data.greenhouse.watchdog_active;
                     watchdogEl.innerText = isActive ? t.on : t.off;
