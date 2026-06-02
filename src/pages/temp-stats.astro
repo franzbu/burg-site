@@ -174,7 +174,6 @@ const t = trans[lang];
                 const unitSuffix = cleanUnit === '°' ? '°' : '';
                 const isHumidity = entity === 'sensor.weather_sensor_plus_garten_humidity';
                 
-                // Specific rule to hide individual bar min/max values for Sunshine and Heating Energy
                 const hideBarMinMax = entity === 'sensor.switching_and_measuring_cable_outdoor_energy_counter' || 
                                       entity === 'sensor.weather_sensor_plus_garten_total_sunshine_duration';
                 
@@ -354,17 +353,19 @@ const t = trans[lang];
 
                         archive[year].forEach((dataObj, index) => {
                             const hasData = dataObj !== null;
-                            const pct = (!hasData || dataObj.mean === 0) ? 0 : Math.max(1, ((dataObj.mean - minM) / rangeM) * 100);
+                            if (!hasData) return; // Completely erase month if no data exists for sensor
+
+                            const pct = (dataObj.mean === 0) ? 0 : Math.max(1, ((dataObj.mean - minM) / rangeM) * 100);
                             
-                            const meanText = hasData ? dataObj.mean.toFixed(1) : '-';
-                            const maxText = (!hideBarMinMax && hasData && dataObj.max !== undefined && dataObj.max !== null) ? dataObj.max.toFixed(1) + unitSuffix : '';
-                            const minText = (!hideBarMinMax && hasData && dataObj.min !== undefined && dataObj.min !== null) ? dataObj.min.toFixed(1) + unitSuffix : '';
+                            const meanText = dataObj.mean.toFixed(1);
+                            const maxText = (!hideBarMinMax && dataObj.max !== undefined && dataObj.max !== null) ? dataObj.max.toFixed(1) + unitSuffix : '';
+                            const minText = (!hideBarMinMax && dataObj.min !== undefined && dataObj.min !== null) ? dataObj.min.toFixed(1) + unitSuffix : '';
 
                             html += `
                                 <div class="chart-column">
                                     <div class="chart-value" style="font-size: 0.65rem; color: #ef4444; margin-bottom: 0.1rem;">${maxText}</div>
                                     <div class="chart-value" style="font-size: 0.65rem; color: #3b82f6; margin-bottom: 0.3rem; margin-top: 0;">${minText}</div>
-                                    <div class="chart-bar-container" style="${!hasData ? 'border-style:dashed;opacity:0.2' : ''}">
+                                    <div class="chart-bar-container">
                                         <div class="chart-bar" style="height: ${pct}%; background: ${monthlyBarBg}; opacity: 0.9;"></div>
                                     </div>
                                     <div class="chart-value">${meanText}</div>
@@ -386,7 +387,6 @@ const t = trans[lang];
                         const labels = chart.querySelectorAll('.chart-label');
                         let targetCol = null;
                         
-                        // Find the last column that actually contains data
                         for (let i = labels.length - 1; i >= 0; i--) {
                             if (labels[i].innerText.trim() !== '') {
                                 targetCol = labels[i];
@@ -436,7 +436,7 @@ const t = trans[lang];
     .card.clickable:hover { background: rgba(255, 255, 255, 0.03); border-color: var(--card-border-hover); box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7); }
     .card.clickable:active { transform: scale(0.98); }
     .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem; }
-    .history-chart-grid { display: flex; flex-wrap: nowrap; gap: 0.75rem; min-height: 160px; align-items: flex-end; padding-top: 1rem; overflow-x: auto; overflow-y: hidden; padding-bottom: 0.5rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.1) transparent; }
+    .history-chart-grid { display: flex; flex-wrap: nowrap; gap: 0.75rem; min-height: 140px; align-items: flex-end; padding-top: 1rem; overflow-x: auto; overflow-y: hidden; padding-bottom: 0.5rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.1) transparent; }
     .history-chart-grid::-webkit-scrollbar { height: 6px; }
     .history-chart-grid::-webkit-scrollbar-track { background: transparent; }
     .history-chart-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }

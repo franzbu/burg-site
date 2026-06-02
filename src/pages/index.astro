@@ -116,11 +116,10 @@ const t = trans[lang];
             <div class="card col-4" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_temperature')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
                     <div class="card-title">{t.outdoor}</div>
-                    <div class="value-large" id="ws-temp" title={t.ttCurr} style="margin-bottom: 0;">--.-<span class="value-unit">°C</span></div>
-                    <div style="display: flex; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700; margin-bottom: auto; margin-top: 0.25rem;">
-                        <div style="flex: 1; text-align: center; color: #3b82f6;" id="ws-temp-min" title={t.ttMin}>--.-°</div>
-                        <div style="color: var(--text-muted); font-size: 1rem; align-self: center;">|</div>
-                        <div style="flex: 1; text-align: center; color: #ef4444;" id="ws-temp-max" title={t.ttMax}>--.-°</div>
+                    <div class="value-large" id="ws-temp" title={t.ttCurr} style="margin: auto 0 0.25rem 0;">--.-<span class="value-unit">°C</span></div>
+                    <div style="display: flex; justify-content: center; gap: 1rem; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; margin-bottom: auto;">
+                        <span id="ws-temp-min" title={t.ttMin} style="color: #3b82f6;">--.-°</span>
+                        <span id="ws-temp-max" title={t.ttMax} style="color: #ef4444;">--.-°</span>
                     </div>
                 </div>
                 <div class="clickable" onclick="openLuxStats()" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
@@ -162,11 +161,10 @@ const t = trans[lang];
             <div class="card col-4" style="background: radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.04), transparent 60%), var(--card-bg); padding: 0; display: flex; flex-direction: column; overflow: hidden;">
                 <div class="clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_garten_temperature')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
                     <div class="card-title" style="color: var(--success);">{t.greenhouse}</div>
-                    <div class="value-large" id="facade-greenhouse" title={t.ttCurr} style="margin-bottom: 0;">--.-<span class="value-unit" style="color: var(--success);">°C</span></div>
-                    <div style="display: flex; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700; margin-bottom: auto; margin-top: 0.25rem;">
-                        <div style="flex: 1; text-align: center; color: #3b82f6;" id="gh-temp-min" title={t.ttMin}>--.-°</div>
-                        <div style="color: var(--text-muted); font-size: 1rem; align-self: center;">|</div>
-                        <div style="flex: 1; text-align: center; color: #ef4444;" id="gh-temp-max" title={t.ttMax}>--.-°</div>
+                    <div class="value-large" id="facade-greenhouse" title={t.ttCurr} style="margin: auto 0 0.25rem 0;">--.-<span class="value-unit" style="color: var(--success);">°C</span></div>
+                    <div style="display: flex; justify-content: center; gap: 1rem; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; margin-bottom: auto;">
+                        <span id="gh-temp-min" title={t.ttMin} style="color: #3b82f6;">--.-°</span>
+                        <span id="gh-temp-max" title={t.ttMax} style="color: #ef4444;">--.-°</span>
                     </div>
                 </div>
                 <div class="clickable" onclick="openTempStats('sensor.switching_and_measuring_cable_outdoor_energy_counter')" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">

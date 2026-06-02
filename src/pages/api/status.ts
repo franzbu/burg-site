@@ -13,7 +13,7 @@ export const GET: APIRoute = async () => {
     const SWITCH_ID = "switch.switch_circuit_board_garten_switch_circuit_board_garten";
     const OUTDOOR_TEMP_ID = "sensor.weather_sensor_plus_garten_temperature";
     const GREENHOUSE_TEMP_ID = "sensor.temperature_and_humidity_sensor_outdoor_garten_temperature";
-    const ACUTE_RAIN_ID = "binary_sensor.weather_sensor_plus_garten_raining";
+    const ACUTE_RAIN_ID = "binary_sensor.weather_sensor_plus_garten_raining,sensor.weather_sensor_plus_garten_raining";
 
     const OFFSET_MS = 2 * 60 * 60 * 1000; // Italy CEST offset
     const nowMs = Date.now();
@@ -29,15 +29,13 @@ export const GET: APIRoute = async () => {
     const historyStart = new Date(nowMs - 17 * 24 * 60 * 60 * 1000).toISOString(); 
     const monthStart = new Date("2023-12-01T00:00:00Z").toISOString();
     const mtdStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)).toISOString();
-    
-    // Safely fetch 40 days of raw logbook history to build accurate binary sensor stats without DB timeout
-    const acuteRainStart = new Date(nowMs - 40 * 24 * 60 * 60 * 1000).toISOString();
 
+    // Reverted to monthStart to guarantee full long-term history is fetched
     const [haResponse, mpResponse, switchHistoryRes, acuteRainHistoryRes] = await Promise.all([
       fetch(`${HA_BASE}/states`, { headers: { 'Authorization': `Bearer ${HA_TOKEN.trim()}` } }),
       fetch(MP_URL, { headers: { 'CF-Access-Client-Id': CF_CLIENT_ID.trim(), 'CF-Access-Client-Secret': CF_CLIENT_SECRET.trim() } }),
       fetch(`${HA_BASE}/history/period/${historyStart}?end_time=${now}&filter_entity_id=${SWITCH_ID}`, { headers: { 'Authorization': `Bearer ${HA_TOKEN.trim()}` } }),
-      fetch(`${HA_BASE}/history/period/${acuteRainStart}?end_time=${now}&filter_entity_id=${ACUTE_RAIN_ID}`, { headers: { 'Authorization': `Bearer ${HA_TOKEN.trim()}` } })
+      fetch(`${HA_BASE}/history/period/${monthStart}?end_time=${now}&filter_entity_id=${ACUTE_RAIN_ID}`, { headers: { 'Authorization': `Bearer ${HA_TOKEN.trim()}` } })
     ]);
 
     const safeParse = async (res: Response) => { try { return JSON.parse((await res.text()).trim()); } catch (e) { return null; } };
@@ -170,14 +168,24 @@ export const GET: APIRoute = async () => {
         }
     }
 
-    // --- Raw History Parser for Acute Rain (String/Binary robust) ---
+    // --- Raw History Parser for Acute Rain ---
     let acuteDailyRaw: Record<string, number> = {};
     let acuteMonthlyRaw: Record<string, number> = {};
+    let combinedRainHistory: any[] = [];
     
-    let rainActiveEvent: number | null = null;
-    const rainEvents = acuteRainHistoryData[0] || [];
+    acuteRainHistoryData.forEach((entityHistory: any[]) => {
+        combinedRainHistory = combinedRainHistory.concat(entityHistory);
+    });
+    combinedRainHistory.sort((a, b) => new Date(a.last_changed || a.last_updated).getTime() - new Date(b.last_changed || b.last_updated).getTime());
 
-    rainEvents.forEach((s: any) => {
+    // ROOT CAUSE FIX: Isolate the exact timestamp the sensor started recording data.
+    let sensorCreationTime = nowMs;
+    if (combinedRainHistory.length > 0) {
+        sensorCreationTime = new Date(combinedRainHistory[0].last_changed || combinedRainHistory[0].last_updated).getTime();
+    }
+
+    let rainActiveEvent: number | null = null;
+    combinedRainHistory.forEach((s: any) => {
         const t = new Date(s.last_changed || s.last_updated).getTime();
         const stateStr = String(s.state).toLowerCase();
         const isRaining = stateStr === 'on' || stateStr === 'true' || stateStr === '1' || stateStr.includes('rain') || stateStr.includes('wet') || stateStr.includes('regen') || stateStr.includes('feucht');
@@ -245,26 +253,34 @@ export const GET: APIRoute = async () => {
     });
 
     const historicalAcuteRain: any = {};
-    Object.keys(acuteMonthlyRaw).forEach(ymStr => {
-        const [yStr, monthName] = ymStr.split('-');
-        const y = parseInt(yStr);
-        if (!historicalAcuteRain[y]) historicalAcuteRain[y] = { 'Januar': null, 'Februar': null, 'März': null, 'April': null, 'Mai': null, 'Juni': null, 'Juli': null, 'August': null, 'September': null, 'Oktober': null, 'November': null, 'Dezember': null };
+    
+    // ROOT CAUSE FIX: Start timeline organically at sensor creation time. Never generate empty years.
+    const startD = new Date(sensorCreationTime);
+    startD.setUTCDate(1);
+    startD.setUTCHours(0, 0, 0, 0);
+
+    const endD = new Date();
+    
+    while (startD <= endD) {
+        const y = startD.getUTCFullYear();
+        const monthName = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'][startD.getUTCMonth()];
         
-        const monthIdx = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'].indexOf(monthName);
-        const daysInMonth = new Date(y, monthIdx + 1, 0).getDate();
-        const totalSecondsInMonth = daysInMonth * 86400;
+        if (!historicalAcuteRain[y]) {
+            historicalAcuteRain[y] = { 'Januar': null, 'Februar': null, 'März': null, 'April': null, 'Mai': null, 'Juni': null, 'Juli': null, 'August': null, 'September': null, 'Oktober': null, 'November': null, 'Dezember': null };
+        }
+        
+        const ymStr = `${y}-${monthName}`;
         const seconds = acuteMonthlyRaw[ymStr] || 0;
+        
+        const daysInMonth = new Date(y, startD.getUTCMonth() + 1, 0).getDate();
+        const totalSecondsInMonth = daysInMonth * 86400;
         const minutes = seconds / 60;
         const percentage = Math.min(100, (seconds / totalSecondsInMonth) * 100);
         
         historicalAcuteRain[y][monthName] = { minutes: parseFloat(minutes.toFixed(1)), percentage: parseFloat(percentage.toFixed(1)) };
-    });
-    
-    const currY = d.getUTCFullYear();
-    const currMName = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'][d.getUTCMonth()];
-    if (!historicalAcuteRain[currY]) historicalAcuteRain[currY] = { 'Januar': null, 'Februar': null, 'März': null, 'April': null, 'Mai': null, 'Juni': null, 'Juli': null, 'August': null, 'September': null, 'Oktober': null, 'November': null, 'Dezember': null };
-    if (!historicalAcuteRain[currY][currMName]) historicalAcuteRain[currY][currMName] = { minutes: 0, percentage: 0 };
-
+        
+        startD.setUTCMonth(startD.getUTCMonth() + 1);
+    }
 
     const extractDiffs = (dataBlock: any, entityId: string) => {
         const stats = dataBlock[entityId] || [];

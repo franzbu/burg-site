@@ -141,12 +141,9 @@ const t = trans[lang];
                 statusText.innerText = t.online;
 
                 const cleanUnit = entityInfo.unit.trim();
+                const unitSuffix = cleanUnit === '°' ? '°' : cleanUnit === 'lx' ? '' : cleanUnit;
                 
-                const allowedHourlyEntities = [
-                    'sensor.weather_sensor_plus_garten_illumination'
-                ];
-
-                if (allowedHourlyEntities.includes(entity) && data.hourly && data.hourly.length > 0) {
+                if (data.hourly && data.hourly.length > 0) {
                     const hChart = document.getElementById('hourlyChart');
                     hChart.style.display = 'block';
                     hChart.style.paddingTop = '0';
@@ -157,7 +154,7 @@ const t = trans[lang];
                     let maxValH = realMaxH;
                     let minValH = realMinH;
                     
-                    document.getElementById('hourly-title-text').innerHTML = `${t.last24Hours} (in ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${realMinH.toFixed(0)} | Max: ${realMaxH.toFixed(0)}</span>`;
+                    document.getElementById('hourly-title-text').innerHTML = `${t.last24Hours} (in ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${realMinH.toFixed(0)}${unitSuffix} | Max: ${realMaxH.toFixed(0)}${unitSuffix}</span>`;
 
                     const padding = (maxValH - minValH) * 0.1 || 1;
                     maxValH += padding;
@@ -204,8 +201,11 @@ const t = trans[lang];
                         <div style="width: 100%; min-width: 1200px; display: flex; flex-direction: column;">
                             <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none" style="width: 100%; height: 140px; overflow: visible;">
                                 <defs>
-                                    <linearGradient id="luxGrad" x1="0" y1="${getY(maxValH)}" x2="0" y2="${getY(minValH)}" gradientUnits="userSpaceOnUse">
-                                        <stop offset="0%" stop-color="#fef08a" />     <stop offset="50%" stop-color="#ca8a04" />    <stop offset="100%" stop-color="#1e3a8a" />   </linearGradient>
+                                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse">
+                                        <stop offset="0%" stop-color="#fef08a" />     
+                                        <stop offset="50%" stop-color="#fde047" />    
+                                        <stop offset="100%" stop-color="#ea580c" />   
+                                    </linearGradient>
                                     
                                     <linearGradient id="maskGrad" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="0%" stop-color="white" stop-opacity="0.4"/>
@@ -216,8 +216,8 @@ const t = trans[lang];
                                         <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="url(#maskGrad)" />
                                     </mask>
                                 </defs>
-                                <path d="${fillD}" fill="url(#luxGrad)" mask="url(#fadeMask)" />
-                                <path d="${pathD}" fill="none" stroke="url(#luxGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="${fillD}" fill="url(#chartGrad)" mask="url(#fadeMask)" />
+                                <path d="${pathD}" fill="none" stroke="url(#chartGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                             <div style="display: flex; justify-content: space-between; margin-top: 5px; width: 100%;">
                                 ${labelsHTML}
@@ -232,27 +232,29 @@ const t = trans[lang];
                     const realMaxD = Math.max(...data.daily.map(d => d.max !== null && d.max !== undefined ? d.max : d.mean));
                     const realMinD = Math.min(...data.daily.map(d => d.min !== null && d.min !== undefined ? d.min : d.mean));
                     
-                    document.getElementById('daily-title-text').innerHTML = `${t.last15Days} ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${realMinD.toFixed(0)} | Max: ${realMaxD.toFixed(0)}</span>`;
+                    document.getElementById('daily-title-text').innerHTML = `${t.last15Days} ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${realMinD.toFixed(0)}${unitSuffix} | Max: ${realMaxD.toFixed(0)}${unitSuffix}</span>`;
 
                     let maxVal = Math.max(realMaxD, 1);
                     let minVal = Math.min(realMinD, 0);
                     if(minVal > 0) minVal = 0;
                     const range = maxVal - minVal || 1;
+                    
+                    const dailyBarBg = 'linear-gradient(to top, rgba(250, 204, 21, 0.2), #fde047)';
 
                     data.daily.forEach(point => {
                         const dateObj = new Date(point.start);
                         const label = `${dateObj.getDate().toString().padStart(2,'0')}.${(dateObj.getMonth()+1).toString().padStart(2,'0')}`;
                         const pct = point.mean === 0 ? 0 : Math.max(1, ((point.mean - minVal) / range) * 100);
                         
-                        const maxText = point.max !== undefined && point.max !== null ? point.max.toFixed(0) : '';
-                        const minText = point.min !== undefined && point.min !== null ? point.min.toFixed(0) : '';
+                        const maxText = point.max !== undefined && point.max !== null ? point.max.toFixed(0) + unitSuffix : '';
+                        const minText = point.min !== undefined && point.min !== null ? point.min.toFixed(0) + unitSuffix : '';
 
                         dChart.innerHTML += `
                             <div class="chart-column">
                                 <div class="chart-value" style="font-size: 0.65rem; color: #ef4444; margin-bottom: 0.1rem;">${maxText}</div>
                                 <div class="chart-value" style="font-size: 0.65rem; color: #3b82f6; margin-bottom: 0.3rem; margin-top: 0;">${minText}</div>
                                 <div class="chart-bar-container">
-                                    <div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(16, 185, 129, 0.2), var(--success)); opacity: 0.9;"></div>
+                                    <div class="chart-bar" style="height: ${pct}%; background: ${dailyBarBg}; opacity: 0.9;"></div>
                                 </div>
                                 <div class="chart-value">${point.mean.toFixed(0)}</div>
                                 <div class="chart-label">${label}</div>
@@ -283,6 +285,8 @@ const t = trans[lang];
 
                     const months = t.monthsShort;
                     const sortedYears = Object.keys(archive).sort((a, b) => b - a);
+                    
+                    const monthlyBarBg = 'linear-gradient(to top, rgba(249, 115, 22, 0.4), #f59e0b)';
 
                     sortedYears.forEach(year => {
                         const validMins = archive[year].filter(v => v !== null && v.min !== null && v.min !== undefined).map(v => v.min);
@@ -290,27 +294,31 @@ const t = trans[lang];
                         
                         const yMin = validMins.length > 0 ? Math.min(...validMins).toFixed(0) : '--';
                         const yMax = validMaxs.length > 0 ? Math.max(...validMaxs).toFixed(0) : '--';
+                        const yMinText = yMin + (yMin !== '--' ? unitSuffix : '');
+                        const yMaxText = yMax + (yMax !== '--' ? unitSuffix : '');
                         
                         let html = `
                             <div class="card col-12" style="margin-bottom: 20px;">
-                                <div class="card-title">${t.monthlyData} (${year} in ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${yMin} | Max: ${yMax}</span></div>
+                                <div class="card-title">${t.monthlyData} (${year} in ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${yMinText} | Max: ${yMaxText}</span></div>
                                 <div class="history-chart-grid">
                         `;
 
                         archive[year].forEach((dataObj, index) => {
                             const hasData = dataObj !== null;
-                            const pct = (!hasData || dataObj.mean === 0) ? 0 : Math.max(1, ((dataObj.mean - minM) / rangeM) * 100);
+                            if (!hasData) return; // Completely erase month if no data exists for sensor
+
+                            const pct = (dataObj.mean === 0) ? 0 : Math.max(1, ((dataObj.mean - minM) / rangeM) * 100);
                             
-                            const meanText = hasData ? dataObj.mean.toFixed(0) : '-';
-                            const maxText = hasData && dataObj.max !== undefined && dataObj.max !== null ? dataObj.max.toFixed(0) : '';
-                            const minText = hasData && dataObj.min !== undefined && dataObj.min !== null ? dataObj.min.toFixed(0) : '';
+                            const meanText = dataObj.mean.toFixed(0);
+                            const maxText = (dataObj.max !== undefined && dataObj.max !== null) ? dataObj.max.toFixed(0) + unitSuffix : '';
+                            const minText = (dataObj.min !== undefined && dataObj.min !== null) ? dataObj.min.toFixed(0) + unitSuffix : '';
 
                             html += `
                                 <div class="chart-column">
                                     <div class="chart-value" style="font-size: 0.65rem; color: #ef4444; margin-bottom: 0.1rem;">${maxText}</div>
                                     <div class="chart-value" style="font-size: 0.65rem; color: #3b82f6; margin-bottom: 0.3rem; margin-top: 0;">${minText}</div>
-                                    <div class="chart-bar-container" style="${!hasData ? 'border-style:dashed;opacity:0.2' : ''}">
-                                        <div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(214, 175, 55, 0.2), var(--accent)); opacity: 0.9;"></div>
+                                    <div class="chart-bar-container">
+                                        <div class="chart-bar" style="height: ${pct}%; background: ${monthlyBarBg}; opacity: 0.9;"></div>
                                     </div>
                                     <div class="chart-value">${meanText}</div>
                                     <div class="chart-label">${months[index]}</div>
@@ -331,7 +339,6 @@ const t = trans[lang];
                         const labels = chart.querySelectorAll('.chart-label');
                         let targetCol = null;
                         
-                        // Find the last column that actually contains data
                         for (let i = labels.length - 1; i >= 0; i--) {
                             if (labels[i].innerText.trim() !== '') {
                                 targetCol = labels[i];
@@ -359,52 +366,16 @@ const t = trans[lang];
 </html>
 
 <style is:global>
-    :root {
-        --bg: #030303;
-        --card-bg: rgba(14, 14, 14, 0.65);
-        --card-border: rgba(214, 175, 55, 0.09);
-        --card-border-hover: rgba(214, 175, 55, 0.25);
-        --accent: #ca9f1b;
-        --success: #10b981;
-        --text-main: #f3f4f6;
-        --text-muted: #4b5563;
-        --text-dim: #9ca3af;
-    }
-
-    #weather-bg {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2;
-        background-size: cover; background-position: center center;
-        background-repeat: no-repeat; transition: filter 3s ease;
-    }
-
-    .floating-back {
-        position: fixed; top: max(1.5rem, env(safe-area-inset-top)); left: max(1.5rem, env(safe-area-inset-left));
-        z-index: 999; display: flex; align-items: center; gap: 0.5rem;
-        background: rgba(14, 14, 14, 0.65); border: 1px solid rgba(255, 255, 255, 0.09);
-        backdrop-filter: blur(20px); padding: 0.5rem 1rem 0.5rem 0.5rem; border-radius: 100px;
-        color: var(--text-main); font-size: 0.8rem; font-weight: 700;
-        text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer;
-    }
+    :root { --bg: #030303; --card-bg: rgba(14, 14, 14, 0.65); --card-border: rgba(214, 175, 55, 0.09); --card-border-hover: rgba(214, 175, 55, 0.25); --accent: #ca9f1b; --success: #10b981; --text-main: #f3f4f6; --text-muted: #4b5563; --text-dim: #9ca3af; }
+    #weather-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background-size: cover; background-position: center center; background-repeat: no-repeat; transition: filter 3s ease; }
+    .floating-back { position: fixed; top: max(1.5rem, env(safe-area-inset-top)); left: max(1.5rem, env(safe-area-inset-left)); z-index: 999; display: flex; align-items: center; gap: 0.5rem; background: rgba(14, 14, 14, 0.65); border: 1px solid rgba(255, 255, 255, 0.09); backdrop-filter: blur(20px); padding: 0.5rem 1rem 0.5rem 0.5rem; border-radius: 100px; color: var(--text-main); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
     .floating-back:hover { border-color: rgba(214, 175, 55, 0.25); background: rgba(255, 255, 255, 0.05); transform: scale(1.02); }
     .floating-back:active { transform: scale(0.96); }
-
-    body {
-        font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; background-color: var(--bg);
-        background-image: radial-gradient(circle at 0% 0%, rgba(214, 175, 55, 0.04), transparent 45%),
-            radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.02), transparent 45%),
-            linear-gradient(to right, rgba(255, 255, 255, 0.01) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
-        background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px; background-attachment: fixed;
-        color: var(--text-main); margin: 0; min-height: 100vh; display: flex; flex-direction: column;
-        align-items: center; padding: 5.5rem 2rem 4rem 2rem; box-sizing: border-box;
-    }
-
+    body { font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; background-color: var(--bg); background-image: radial-gradient(circle at 0% 0%, rgba(214, 175, 55, 0.04), transparent 45%), radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.02), transparent 45%), linear-gradient(to right, rgba(255, 255, 255, 0.01) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px); background-size: 100% 100%, 100% 100%, 64px 64px, 64px 64px; background-attachment: fixed; color: var(--text-main); margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 5.5rem 2rem 4rem 2rem; box-sizing: border-box; }
     .container { max-width: 1100px; width: 100%; }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
     .brand h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .status-badge { display: flex; align-items: center; gap: 0.6rem;
-        background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .status-badge { display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
     .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #374151; position: relative; }
     .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success); }
     .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
@@ -417,7 +388,6 @@ const t = trans[lang];
     .card.clickable:hover { background: rgba(255, 255, 255, 0.03); border-color: var(--card-border-hover); box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7); }
     .card.clickable:active { transform: scale(0.98); }
     .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #52525b; font-weight: 700; margin-bottom: 1.25rem; }
-    
     .history-chart-grid { display: flex; flex-wrap: nowrap; gap: 0.75rem; min-height: 160px; align-items: flex-end; padding-top: 1rem; overflow-x: auto; overflow-y: hidden; padding-bottom: 0.5rem; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.1) transparent; }
     .history-chart-grid::-webkit-scrollbar { height: 6px; }
     .history-chart-grid::-webkit-scrollbar-track { background: transparent; }
@@ -429,6 +399,5 @@ const t = trans[lang];
     .chart-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
     .chart-value { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin: 0.4rem 0 0.15rem 0; white-space: nowrap; }
     .chart-label { font-size: 0.7rem; text-transform: uppercase; color: #52525b; font-weight: 700; letter-spacing: 0.05em; }
-
     @media (max-width: 768px) { header { flex-direction: column; align-items: flex-start; gap: 1rem; } }
 </style>
