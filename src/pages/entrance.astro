@@ -1,0 +1,266 @@
+---
+// src/pages/entrance.astro
+const acceptLang = Astro.request.headers.get('accept-language') || 'de';
+const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
+const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+
+const trans = {
+    de: { 
+        title: "Burg | Eingangs-Historie", head: "Burg - Eingang (30 Tage)", back: "Zurück", 
+        online: "VERBUNDEN", init: "INITIALISIERE...", loading: "Lade Bilder-Historie...",
+        deleteAll: "ALLE LÖSCHEN", delete: "LÖSCHEN", confirmDel: "Dieses Bild wirklich löschen?", 
+        confirmDelAll: "WARNUNG: Alle Bilder unwiderruflich löschen?", errPwd: "Fehler beim Löschen.",
+        loadMore: "10 weitere Bilder"
+    },
+    en: { 
+        title: "Burg | Entrance History", head: "Burg - Entrance (30 Days)", back: "Back", 
+        online: "CONNECTED", init: "INITIALIZING...", loading: "Loading history...",
+        deleteAll: "DELETE ALL", delete: "DELETE", confirmDel: "Are you sure you want to delete this image?", 
+        confirmDelAll: "WARNING: Delete ALL images permanently?", errPwd: "Failed to delete.",
+        loadMore: "10 more images"
+    },
+    it: { 
+        title: "Burg | Cronologia Ingresso", head: "Burg - Ingresso (30 Giorni)", back: "Indietro", 
+        online: "CONNESSO", init: "INIZIALIZZAZIONE...", loading: "Caricamento cronologia...",
+        deleteAll: "ELIMINA TUTTO", delete: "ELIMINA", confirmDel: "Sei sicuro di voler eliminare questa immagine?", 
+        confirmDelAll: "ATTENZIONE: Eliminare TUTTE le immagini in modo permanente?", errPwd: "Errore durante l'eliminazione.",
+        loadMore: "Altre 10 immagini"
+    }
+};
+const t = trans[lang];
+---
+<!DOCTYPE html>
+<html lang={lang}>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{t.title}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><rect width='24' height='24' fill='black'/><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+    <meta name="theme-color" content="#030303">
+</head>
+<body>
+
+    <div class="floating-back clickable" onclick="if(window.opener){window.close();}else{window.location.href='/';}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span>{t.back}</span>
+    </div>
+
+    <div id="weather-bg" style="background-image: url('/garten_bg.webp');"></div>
+
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h1>{t.head}</h1>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button id="delete-all-btn" class="delete-all-btn" onclick="deleteAllImages()">{t.deleteAll}</button>
+                <div class="status-badge">
+                    <div id="status-indicator" class="status-dot"></div>
+                    <span id="status-text">{t.init}</span>
+                </div>
+            </div>
+        </header>
+
+        <p id="loading" style="color: #9ca3af; font-family: 'JetBrains Mono', monospace; text-align: center; margin-top: 2rem;">{t.loading}</p>
+
+        <div class="history-grid" id="history-container">
+            </div>
+
+    </div>
+
+    <div id="fullscreen-overlay" onclick="closeFullscreen()">
+        <img id="fullscreen-img" src="" alt="Fullscreen">
+    </div>
+
+    <script is:inline set:html={`const t = ${JSON.stringify(t)};`}></script>
+    <script is:inline>
+        const statusDot = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const workerUrl = "https://burg-proxy.gitor.uk";
+        
+        let allFiles = [];
+        let currentCount = 10;
+
+        function openFullscreen(url) {
+            const overlay = document.getElementById('fullscreen-overlay');
+            const img = document.getElementById('fullscreen-img');
+            img.src = url;
+            overlay.style.display = 'flex';
+        }
+
+        function closeFullscreen() {
+            document.getElementById('fullscreen-overlay').style.display = 'none';
+            document.getElementById('fullscreen-img').src = '';
+        }
+
+        async function deleteImage(filename, btnElement) {
+            if(!confirm(t.confirmDel)) return;
+            
+            const originalText = btnElement.innerHTML;
+            btnElement.innerHTML = '...';
+
+            try {
+                const res = await fetch(`/api/delete-image?file=${filename}`, { method: 'DELETE' });
+                if(res.ok) {
+                    allFiles = allFiles.filter(f => f.name !== filename);
+                    btnElement.closest('.history-card').remove();
+                } else {
+                    alert(t.errPwd);
+                    btnElement.innerHTML = originalText;
+                }
+            } catch(e) {
+                alert(t.errPwd);
+                btnElement.innerHTML = originalText;
+            }
+        }
+
+        async function deleteAllImages() {
+            if(!confirm(t.confirmDelAll)) return;
+            const btn = document.getElementById('delete-all-btn');
+            const originalText = btn.innerText;
+            btn.innerText = '...';
+
+            try {
+                const res = await fetch(`/api/delete-image?prefix=entrance_`, { method: 'DELETE' });
+                if(res.ok) {
+                    allFiles = [];
+                    renderImages();
+                } else {
+                    alert(t.errPwd);
+                }
+            } catch(e) {
+                alert(t.errPwd);
+            }
+            btn.innerText = originalText;
+        }
+
+        function renderImages() {
+            const container = document.getElementById('history-container');
+            container.innerHTML = '';
+            
+            const visibleFiles = allFiles.slice(0, currentCount);
+
+            visibleFiles.forEach(file => {
+                const date = new Date(file.time);
+                const dateStr = date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                const card = document.createElement('div');
+                card.className = 'history-card';
+                
+                card.innerHTML = `
+                    <div class="history-image-wrapper">
+                        <img src="${workerUrl}/cdn-cgi/image/width=600,quality=75,format=auto/${file.name}" 
+                             data-full="${workerUrl}/${file.name}"
+                             loading="lazy"
+                             onclick="openFullscreen(this.getAttribute('data-full'))">
+                    </div>
+                    <div class="history-info">
+                        <span class="history-time">${dateStr} - ${timeStr}</span>
+                        <button class="delete-btn" onclick="deleteImage('${file.name}', this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            if (currentCount < allFiles.length) {
+                const btn = document.createElement('button');
+                btn.className = 'load-more-btn';
+                btn.innerText = t.loadMore;
+                btn.onclick = loadMoreImages;
+                container.appendChild(btn);
+            }
+        }
+
+        function loadMoreImages() {
+            currentCount += 10;
+            renderImages();
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch(`${workerUrl}/history`);
+                if (!res.ok) throw new Error("Worker returned " + res.status);
+                const files = await res.json();
+                
+                allFiles = files.filter(f => f.name.startsWith('entrance_'));
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                statusDot.className = "status-dot online";
+                statusText.innerText = t.online;
+
+                renderImages();
+            } catch (e) {
+                document.getElementById('loading').innerText = "FEHLER BEIM LADEN";
+                statusDot.className = "status-dot";
+                statusText.innerText = "OFFLINE";
+            }
+        }
+
+        fetchHistory();
+    </script>
+</body>
+</html>
+
+<style is:global>
+    :root { --bg: #030303; --card-bg: rgba(14, 14, 14, 0.65); --card-border: rgba(214, 175, 55, 0.09); --accent: #ca9f1b; --success: #10b981; --text-main: #f3f4f6; --text-dim: #9ca3af; }
+    #weather-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background-size: cover; background-position: center center; background-repeat: no-repeat; filter: brightness(0.4) saturate(0.8) blur(5px); }
+    .floating-back { position: fixed; top: max(1.5rem, env(safe-area-inset-top)); left: max(1.5rem, env(safe-area-inset-left)); z-index: 999; display: flex; align-items: center; gap: 0.5rem; background: rgba(14, 14, 14, 0.65); border: 1px solid rgba(255, 255, 255, 0.09); backdrop-filter: blur(20px); padding: 0.5rem 1rem 0.5rem 0.5rem; border-radius: 100px; color: var(--text-main); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; cursor: pointer; }
+    .floating-back:hover { border-color: rgba(214, 175, 55, 0.25); background: rgba(255, 255, 255, 0.05); transform: scale(1.02); }
+    .floating-back:active { transform: scale(0.96); }
+    body { font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 5.5rem 2rem 4rem 2rem; box-sizing: border-box; }
+    .container { max-width: 1200px; width: 100%; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 2rem; }
+    @media (max-width: 768px) { header { flex-direction: column; align-items: flex-start; gap: 1rem; } }
+    
+    .brand h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; margin: 0; background: linear-gradient(135deg, #fff 50%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    
+    .status-badge { display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.5rem 1.2rem; border-radius: 100px; font-size: 0.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #ef4444; position: relative; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 12px var(--success); }
+    .status-dot.online::after { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+
+    .delete-all-btn { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 0.5rem 1rem; border-radius: 100px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; }
+    .delete-all-btn:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); }
+    
+    .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+    
+    .history-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1rem; overflow: hidden; display: flex; flex-direction: column; }
+    .history-image-wrapper { width: 100%; aspect-ratio: 16/9; background: #111; overflow: hidden; position: relative; }
+    .history-image-wrapper img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.3s ease; }
+    .history-image-wrapper img:hover { transform: scale(1.03); }
+    
+    .history-info { padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+    .history-time { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-dim); }
+    
+    .delete-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-dim); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; padding: 0; }
+    .delete-btn:hover { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
+    .delete-btn svg { width: 16px; height: 16px; }
+
+    .load-more-btn {
+        grid-column: 1 / -1;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        color: var(--text-main);
+        padding: 1rem;
+        border-radius: 8px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 1rem;
+    }
+    .load-more-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--accent); color: var(--accent); }
+    .load-more-btn:active { transform: scale(0.98); }
+
+    #fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; cursor: zoom-out; backdrop-filter: blur(5px); }
+    #fullscreen-img { max-width: 95%; max-height: 95%; border-radius: 8px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+</style>

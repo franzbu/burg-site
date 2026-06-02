@@ -27,24 +27,14 @@ export const GET: APIRoute = async ({ request }) => {
     if (entityId.includes('energy')) { statType = "state"; statTypes = ["state"]; }
     else if (isCumulative) { statType = "sum"; statTypes = ["sum"]; }
 
+    const OFFSET_MS = 2 * 60 * 60 * 1000; // Italy CEST offset
     const nowMs = Date.now();
     const now = new Date(nowMs).toISOString();
-    const d = new Date();
 
-    let dayStart, monthStart, mtdStart;
+    // Fetch ALL daily data to completely bypass HA's buggy monthly bucket finalization drops
+    const historyStart = new Date("2023-12-01T00:00:00Z").toISOString();
     const hourStart = new Date(nowMs - 48 * 60 * 60 * 1000).toISOString();
 
-    if (isCumulative) {
-        dayStart = new Date(nowMs - 16 * 24 * 60 * 60 * 1000).toISOString();
-        monthStart = new Date("2023-12-01T00:00:00Z").toISOString();
-        mtdStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)).toISOString();
-    } else {
-        dayStart = new Date(nowMs - 15 * 24 * 60 * 60 * 1000).toISOString();
-        monthStart = new Date("2024-01-01T00:00:00Z").toISOString(); 
-        mtdStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
-    }
-
-    // NATIVE CLOUDFLARE WEBSOCKET IMPLEMENTATION
     const fetchLTSViaWebSocket = (): Promise<any> => {
         return new Promise(async (resolve, reject) => {
             try {
@@ -57,13 +47,13 @@ export const GET: APIRoute = async ({ request }) => {
                 
                 ws.accept();
 
-                let dailyData: any = null, monthlyData: any = null, mtdData: any = null, hourlyData: any = null;
+                let dailyData: any = null, hourlyData: any = null;
                 const timeout = setTimeout(() => { ws.close(); reject(new Error("WebSocket timeout")); }, 8000);
 
                 const checkDone = () => {
-                    if (dailyData !== null && monthlyData !== null && mtdData !== null && hourlyData !== null) {
+                    if (dailyData !== null && hourlyData !== null) {
                         clearTimeout(timeout); ws.close();
-                        resolve({ dailyData, monthlyData, mtdData, hourlyData });
+                        resolve({ dailyData, hourlyData });
                     }
                 };
 
@@ -72,15 +62,11 @@ export const GET: APIRoute = async ({ request }) => {
                     if (msg.type === "auth_required") {
                         ws.send(JSON.stringify({ type: "auth", access_token: HA_TOKEN.trim() }));
                     } else if (msg.type === "auth_ok") {
-                        ws.send(JSON.stringify({ id: 1, type: "recorder/statistics_during_period", start_time: dayStart, end_time: now, statistic_ids: queryIds, period: "day", types: statTypes }));
-                        ws.send(JSON.stringify({ id: 2, type: "recorder/statistics_during_period", start_time: monthStart, end_time: now, statistic_ids: queryIds, period: "month", types: statTypes }));
-                        ws.send(JSON.stringify({ id: 3, type: "recorder/statistics_during_period", start_time: mtdStart, end_time: now, statistic_ids: queryIds, period: "day", types: statTypes }));
-                        ws.send(JSON.stringify({ id: 4, type: "recorder/statistics_during_period", start_time: hourStart, end_time: now, statistic_ids: queryIds, period: "5minute", types: statTypes }));
+                        ws.send(JSON.stringify({ id: 1, type: "recorder/statistics_during_period", start_time: historyStart, end_time: now, statistic_ids: queryIds, period: "day", types: statTypes }));
+                        ws.send(JSON.stringify({ id: 2, type: "recorder/statistics_during_period", start_time: hourStart, end_time: now, statistic_ids: queryIds, period: "5minute", types: statTypes }));
                     } else if (msg.type === "result") {
                         if (msg.id === 1) dailyData = msg.result || {};
-                        if (msg.id === 2) monthlyData = msg.result || {};
-                        if (msg.id === 3) mtdData = msg.result || {};
-                        if (msg.id === 4) hourlyData = msg.result || {};
+                        if (msg.id === 2) hourlyData = msg.result || {};
                         checkDone();
                     }
                 });
@@ -91,146 +77,147 @@ export const GET: APIRoute = async ({ request }) => {
         });
     };
 
-    const { dailyData, monthlyData, mtdData, hourlyData } = await fetchLTSViaWebSocket();
+    const { dailyData, hourlyData } = await fetchLTSViaWebSocket();
 
-    const extractData = (dataBlock: any, isCumulativeMode: boolean, expectedIntervalMs: number = 0) => {
-        let combinedStats: any[] = [];
-        for (const id of queryIds) {
-            if (dataBlock[id]) combinedStats = combinedStats.concat(dataBlock[id]);
+    let combinedStats: any[] = [];
+    for (const id of queryIds) {
+        if (dailyData[id]) combinedStats = combinedStats.concat(dailyData[id]);
+    }
+    const uniqueMap = new Map();
+    for (const s of combinedStats) uniqueMap.set(s.start, s);
+    const stats = Array.from(uniqueMap.values()).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+    // --- ROCK-SOLID DAILY & MONTHLY AGGREGATION ---
+    let processedDaily: any[] = [];
+    if (isCumulative) {
+        for (let i = 1; i < stats.length; i++) {
+            const prev = stats[i - 1][statType] !== undefined && stats[i - 1][statType] !== null ? stats[i - 1][statType] : 0;
+            const curr = stats[i][statType] !== undefined && stats[i][statType] !== null ? stats[i][statType] : 0;
+            const diff = Math.max(0, curr - prev);
+            const localDate = new Date(new Date(stats[i].start).getTime() + OFFSET_MS);
+            processedDaily.push({ start: localDate, val: diff, min: diff, max: diff });
         }
-        const uniqueMap = new Map();
-        for (const s of combinedStats) uniqueMap.set(s.start, s);
-        const stats = Array.from(uniqueMap.values()).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-
-        if (!isCumulativeMode) {
-            let parsed = stats.map((s: any) => {
-                let val = s.mean !== undefined && s.mean !== null ? s.mean : null;
-                let min = s.min !== undefined && s.min !== null ? s.min : val;
-                let max = s.max !== undefined && s.max !== null ? s.max : val;
-                
-                return { 
-                    start: s.start, 
-                    val: val !== null ? parseFloat(Number(val).toFixed(1)) : null,
-                    min: min !== null ? parseFloat(Number(min).toFixed(1)) : null,
-                    max: max !== null ? parseFloat(Number(max).toFixed(1)) : null
-                };
-            });
-
-            if (expectedIntervalMs > 0 && parsed.length > 0) {
-                const filled = [parsed[0]];
-                for (let i = 1; i < parsed.length; i++) {
-                    let prevTime = new Date(filled[filled.length - 1].start).getTime();
-                    let currTime = new Date(parsed[i].start).getTime();
-                    while (currTime - prevTime > expectedIntervalMs * 1.5) {
-                        prevTime += expectedIntervalMs;
-                        filled.push({ start: new Date(prevTime).toISOString(), val: null, min: null, max: null });
-                    }
-                    filled.push(parsed[i]);
-                }
-                const nowUTC = Date.now();
-                let lastTime = new Date(filled[filled.length - 1].start).getTime();
-                while (nowUTC - lastTime > expectedIntervalMs * 1.5) {
-                    lastTime += expectedIntervalMs;
-                    filled.push({ start: new Date(lastTime).toISOString(), val: null, min: null, max: null });
-                }
-                parsed = filled;
-            }
-
-            for (let i = 0; i < parsed.length; i++) {
-                if (parsed[i].val === null) {
-                    let prevIdx = i - 1;
-                    while (prevIdx >= 0 && parsed[prevIdx].val === null) prevIdx--;
-                    let nextIdx = i + 1;
-                    while (nextIdx < parsed.length && parsed[nextIdx].val === null) nextIdx++;
-
-                    if (prevIdx >= 0 && nextIdx < parsed.length) {
-                        const prevVal = parsed[prevIdx].val;
-                        const nextVal = parsed[nextIdx].val;
-                        const fraction = (i - prevIdx) / (nextIdx - prevIdx);
-                        parsed[i].val = parseFloat((prevVal + (nextVal - prevVal) * fraction).toFixed(1));
-                        parsed[i].min = parsed[i].val;
-                        parsed[i].max = parsed[i].val;
-                    } else if (prevIdx >= 0) {
-                        parsed[i].val = parsed[prevIdx].val;
-                        parsed[i].min = parsed[i].val;
-                        parsed[i].max = parsed[i].val;
-                    } else if (nextIdx < parsed.length) {
-                        parsed[i].val = parsed[nextIdx].val;
-                        parsed[i].min = parsed[i].val;
-                        parsed[i].max = parsed[i].val;
-                    } else {
-                        parsed[i].val = 0; parsed[i].min = 0; parsed[i].max = 0;
-                    }
-                }
-            }
-            return parsed;
-        } else {
-            const result = [];
-            for (let i = 1; i < stats.length; i++) {
-                const prev = stats[i - 1][statType] !== undefined && stats[i - 1][statType] !== null ? stats[i - 1][statType] : 0;
-                const curr = stats[i][statType] !== undefined && stats[i][statType] !== null ? stats[i][statType] : 0;
-                const diff = Math.max(0, curr - prev);
-                const diffFloat = parseFloat(diff.toFixed(1));
-                
-                result.push({ start: stats[i].start, val: diffFloat, min: diffFloat, max: diffFloat });
-            }
-            return result;
-        }
-    };
-
-    let dailyExtracted = extractData(dailyData, isCumulative, 24 * 60 * 60 * 1000);
-    if (isCumulative) dailyExtracted = dailyExtracted.slice(-15);
-    const daily = dailyExtracted.slice(-15).map((d: any) => ({ start: d.start, mean: d.val, min: d.min, max: d.max }));
-    
-    let hourlyExtracted = extractData(hourlyData, isCumulative, 5 * 60 * 1000);
-    const twentyFourHoursAgo = nowMs - (24 * 60 * 60 * 1000);
-    const hourly = hourlyExtracted
-        .filter((d: any) => new Date(d.start).getTime() >= twentyFourHoursAgo)
-        .map((d: any) => ({ start: d.start, mean: d.val, min: d.min, max: d.max }));
-
-    let monthly = extractData(monthlyData, isCumulative, 0).map((m: any) => {
-        const date = new Date(m.start);
-        date.setUTCHours(date.getUTCHours() + 12); // Safely drops into the middle of the correct month
-        const cleanStart = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01T00:00:00.000Z`;
-        return { start: cleanStart, mean: m.val, min: m.min, max: m.max };
-    });
-    
-    const currentMonthDays = extractData(mtdData, isCumulative, 0);
-    if (currentMonthDays.length > 0) {
-        let mtdVal = 0;
-        let mtdMin = null;
-        let mtdMax = null;
-
-        if (isCumulative) {
-            mtdVal = currentMonthDays.reduce((acc: number, curr: any) => acc + curr.val, 0);
-            mtdMin = mtdVal; 
-            mtdMax = mtdVal;
-        } else {
-            mtdVal = currentMonthDays.reduce((acc: number, curr: any) => acc + curr.val, 0) / currentMonthDays.length;
-            const validMins = currentMonthDays.map((d: any) => d.min).filter((v: any) => v !== null);
-            const validMaxs = currentMonthDays.map((d: any) => d.max).filter((v: any) => v !== null);
-            if (validMins.length > 0) mtdMin = Math.min(...validMins);
-            if (validMaxs.length > 0) mtdMax = Math.max(...validMaxs);
-        }
-        
-        const currentMonthStartISO = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
-        const currentMonthPrefix = currentMonthStartISO.substring(0, 7); 
-        const existingIndex = monthly.findIndex((m: any) => m.start.startsWith(currentMonthPrefix));
-        if (existingIndex !== -1) {
-            monthly[existingIndex].mean = parseFloat(mtdVal.toFixed(1)); 
-            if (mtdMin !== null) monthly[existingIndex].min = parseFloat(mtdMin.toFixed(1));
-            if (mtdMax !== null) monthly[existingIndex].max = parseFloat(mtdMax.toFixed(1));
-        } else {
-            monthly.push({ 
-                start: currentMonthStartISO, 
-                mean: parseFloat(mtdVal.toFixed(1)),
-                min: mtdMin !== null ? parseFloat(mtdMin.toFixed(1)) : null,
-                max: mtdMax !== null ? parseFloat(mtdMax.toFixed(1)) : null
-            }); 
-        }
+    } else {
+        processedDaily = stats.map((s: any) => {
+            const localDate = new Date(new Date(s.start).getTime() + OFFSET_MS);
+            return { 
+                start: localDate, 
+                val: s.mean !== undefined && s.mean !== null ? s.mean : null, 
+                min: s.min !== undefined && s.min !== null ? s.min : null, 
+                max: s.max !== undefined && s.max !== null ? s.max : null 
+            };
+        });
     }
 
-    return new Response(JSON.stringify({ entity: entityId, daily, monthly, hourly }), 
+    const daily = processedDaily.slice(-15).map(d => ({
+        start: d.start.toISOString(),
+        mean: d.val !== null ? parseFloat(d.val.toFixed(1)) : null,
+        min: d.min !== null ? parseFloat(d.min.toFixed(1)) : null,
+        max: d.max !== null ? parseFloat(d.max.toFixed(1)) : null
+    }));
+
+    const monthlyMap = new Map();
+    processedDaily.forEach(d => {
+        const y = d.start.getUTCFullYear();
+        const m = d.start.getUTCMonth();
+        const key = `${y}-${String(m + 1).padStart(2, '0')}-01T00:00:00.000Z`;
+
+        if (!monthlyMap.has(key)) {
+            monthlyMap.set(key, { sum: 0, count: 0, min: null, max: null });
+        }
+        const bucket = monthlyMap.get(key);
+
+        if (d.val !== null) {
+            bucket.sum += d.val;
+            bucket.count += 1;
+        }
+        if (d.min !== null) bucket.min = bucket.min === null ? d.min : Math.min(bucket.min, d.min);
+        if (d.max !== null) bucket.max = bucket.max === null ? d.max : Math.max(bucket.max, d.max);
+    });
+
+    const monthly = Array.from(monthlyMap.entries()).map(([key, bucket]) => {
+        let mean = 0;
+        if (isCumulative) {
+            mean = bucket.sum;
+        } else {
+            mean = bucket.count > 0 ? bucket.sum / bucket.count : 0;
+        }
+        return {
+            start: key,
+            mean: parseFloat(mean.toFixed(1)),
+            min: bucket.min !== null ? parseFloat(bucket.min.toFixed(1)) : null,
+            max: bucket.max !== null ? parseFloat(bucket.max.toFixed(1)) : null
+        };
+    }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+    // --- HOURLY PROCESSING ---
+    let combinedHourly: any[] = [];
+    for (const id of queryIds) {
+        if (hourlyData[id]) combinedHourly = combinedHourly.concat(hourlyData[id]);
+    }
+    const uniqueHMap = new Map();
+    for (const s of combinedHourly) uniqueHMap.set(s.start, s);
+    let statsH = Array.from(uniqueHMap.values()).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    
+    let finalHourly: any[] = [];
+    const twentyFourHoursAgo = nowMs - (24 * 60 * 60 * 1000);
+
+    if (isCumulative) {
+        for (let i = 1; i < statsH.length; i++) {
+            // FIX: Accidentally referenced 'stats' (daily array) instead of 'statsH' (hourly array) here, causing out-of-bounds TypeError crashes on new sensors
+            const prev = statsH[i - 1][statType] !== undefined && statsH[i - 1][statType] !== null ? statsH[i - 1][statType] : 0;
+            const curr = statsH[i][statType] !== undefined && statsH[i][statType] !== null ? statsH[i][statType] : 0;
+            const diff = Math.max(0, curr - prev);
+            const diffFloat = parseFloat(diff.toFixed(1));
+            if (new Date(statsH[i].start).getTime() >= twentyFourHoursAgo) {
+                finalHourly.push({ start: statsH[i].start, mean: diffFloat, min: diffFloat, max: diffFloat });
+            }
+        }
+    } else {
+        let parsedH = statsH.map((s: any) => ({
+            start: s.start,
+            mean: s.mean !== undefined && s.mean !== null ? s.mean : null,
+            min: s.min !== undefined && s.min !== null ? s.min : null,
+            max: s.max !== undefined && s.max !== null ? s.max : null
+        }));
+
+        for (let i = 0; i < parsedH.length; i++) {
+            if (parsedH[i].mean === null) {
+                let prevIdx = i - 1;
+                while (prevIdx >= 0 && parsedH[prevIdx].mean === null) prevIdx--;
+                let nextIdx = i + 1;
+                while (nextIdx < parsedH.length && parsedH[nextIdx].mean === null) nextIdx++;
+
+                if (prevIdx >= 0 && nextIdx < parsedH.length) {
+                    const prevVal = parsedH[prevIdx].mean;
+                    const nextVal = parsedH[nextIdx].mean;
+                    const fraction = (i - prevIdx) / (nextIdx - prevIdx);
+                    parsedH[i].mean = prevVal + (nextVal - prevVal) * fraction;
+                    parsedH[i].min = parsedH[i].mean;
+                    parsedH[i].max = parsedH[i].mean;
+                } else if (prevIdx >= 0) {
+                    parsedH[i].mean = parsedH[prevIdx].mean;
+                    parsedH[i].min = parsedH[i].mean;
+                    parsedH[i].max = parsedH[i].mean;
+                } else if (nextIdx < parsedH.length) {
+                    parsedH[i].mean = parsedH[nextIdx].mean;
+                    parsedH[i].min = parsedH[i].mean;
+                    parsedH[i].max = parsedH[i].mean;
+                } else {
+                    parsedH[i].mean = 0; parsedH[i].min = 0; parsedH[i].max = 0;
+                }
+            }
+        }
+        finalHourly = parsedH.filter(d => new Date(d.start).getTime() >= twentyFourHoursAgo)
+                             .map(d => ({ 
+                                 start: d.start, 
+                                 mean: parseFloat(d.mean.toFixed(1)), 
+                                 min: d.min !== null ? parseFloat(d.min.toFixed(1)) : null, 
+                                 max: d.max !== null ? parseFloat(d.max.toFixed(1)) : null 
+                             }));
+    }
+
+    return new Response(JSON.stringify({ entity: entityId, daily, monthly, hourly: finalHourly }), 
         { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' } });
 
   } catch (error: any) {

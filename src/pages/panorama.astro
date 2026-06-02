@@ -22,7 +22,7 @@ const trans = {
         title: "Burg | Cronologia Panorama", head: "Burg - Panorama (30 Giorni)", back: "Indietro", 
         online: "CONNESSO", init: "INIZIALIZZAZIONE...", loading: "Caricamento cronologia...",
         deleteAll: "ELIMINA TUTTO", delete: "ELIMINA", confirmDel: "Sei sicuro di voler eliminare questa immagine?", 
-        confirmDelAll: "ATTENZIONE: Eliminare TUTTE le immagini in modo permanente?", errPwd: "Impossibile eliminare.",
+        confirmDelAll: "ATTENZIONE: Eliminare TUTTE le immagini in modo permanente?", errPwd: "Errore durante l'eliminazione.",
         loadMore: "Altre 3 immagini", share: "CONDIVIDI", errShare: "Condivisione non supportata o fallita."
     }
 };
@@ -37,10 +37,12 @@ const t = trans[lang];
     <title>{t.title}</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><rect width='24' height='24' fill='black'/><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#030303">
 </head>
 <body>
+
     <div class="floating-back clickable" onclick="if(window.opener){window.close();}else{window.location.href='/';}">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
         <span>{t.back}</span>
@@ -95,6 +97,7 @@ const t = trans[lang];
             if (data.weather_station) applyWeatherTone(data.weather_station.lux || 0, data.weather_station.is_raining);
         });
 
+        // FIXED: Restored correct endpoint for fetching images!
         const workerUrl = "https://burg-upload-proxy.csaa6335.workers.dev";
         
         function showFullscreen(url) {
@@ -118,7 +121,6 @@ const t = trans[lang];
         async function deleteAllImages() {
             if (!confirm(t.confirmDelAll)) return;
             try {
-                // Passes the mountain prefix so it doesn't delete the entrance images
                 const response = await fetch(`/api/delete-image?prefix=mountain_`, {
                     method: 'DELETE'
                 });
@@ -135,7 +137,6 @@ const t = trans[lang];
 
         async function shareImage(url, filename) {
             try {
-                // Fetch the image as a blob to force the device to share the file, not the link
                 const response = await fetch(url);
                 const blob = await response.blob();
                 const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
@@ -156,7 +157,6 @@ const t = trans[lang];
 
         async function loadHistory() {
             try {
-                // Only fetches the mountain images from the worker
                 const res = await fetch(`${workerUrl}/history?prefix=mountain_`);
                 if (!res.ok) throw new Error("Worker Error");
                 allFiles = await res.json();
@@ -166,7 +166,7 @@ const t = trans[lang];
                     return;
                 }
                 
-                gallery.innerHTML = ''; // Clear loading text
+                gallery.innerHTML = '';
                 renderNextImages();
             } catch (e) { 
                 document.getElementById('history-gallery').innerHTML = `<p style="color: #ef4444; font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">Fehler beim Laden.</p>`;
@@ -177,14 +177,16 @@ const t = trans[lang];
             const gallery = document.getElementById('history-gallery');
             const nextFiles = allFiles.slice(currentRenderCount, currentRenderCount + PAGE_SIZE);
             
-            // Remove the existing "Load More" button container if it exists
             const existingBtn = document.getElementById('load-more-btn-container');
             if (existingBtn) existingBtn.remove();
 
-            const html = nextFiles.map(file => `
+            // FIXED: Hide seconds via strict 'hour' and 'minute' options. Restored missing Share buttons.
+            const html = nextFiles.map(file => {
+                const dateStr = new Date(file.time).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                return `
                 <div class="card col-12" style="margin-bottom: 1.5rem; padding: 1.5rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <div class="card-title" style="color: var(--accent); margin-bottom: 0;">${new Date(file.time).toLocaleString('de-DE')}</div>
+                        <div class="card-title" style="color: var(--accent); margin-bottom: 0;">${dateStr}</div>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="delete-btn share-btn" onclick="shareImage('${workerUrl}/${file.name}', '${file.name}')">${t.share}</button>
                             <button class="delete-btn" onclick="deleteImage('${file.name}')">${t.delete}</button>
@@ -192,7 +194,8 @@ const t = trans[lang];
                     </div>
                     <img src="${workerUrl}/${file.name}" onclick="event.stopPropagation(); showFullscreen('${workerUrl}/${file.name}')" style="width: 100%; border-radius: 8px; display: block; cursor: zoom-in;" loading="lazy">
                 </div>
-            `).join('');
+                `;
+            }).join('');
             
             gallery.insertAdjacentHTML('beforeend', html);
             currentRenderCount += nextFiles.length;
