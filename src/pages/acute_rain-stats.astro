@@ -10,6 +10,7 @@ const trans = {
         init: "INITIALISIERE...", loadingData: "Lade Daten...", back: "Zurück",
         online: "VERBUNDEN", dailyDist: "📅 Akuter Niederschlag (Letzte 15 Tage)",
         histRain: "📈 Historische Verteilung (LTS)", monthlyDist: "📅 Monatlicher Akuter Niederschlag",
+        last24Hours: "⏱️ Letzte 24 Stunden",
         monthsFull: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
     },
     en: {
@@ -17,6 +18,7 @@ const trans = {
         init: "INITIALIZING...", loadingData: "Loading data...", back: "Back",
         online: "CONNECTED", dailyDist: "📅 Acute Rain (Last 15 Days)",
         histRain: "📈 Historical Distribution (LTS)", monthlyDist: "📅 Monthly Acute Rain",
+        last24Hours: "⏱️ Last 24 Hours",
         monthsFull: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     },
     it: {
@@ -24,6 +26,7 @@ const trans = {
         init: "INIZIALIZZAZIONE...", loadingData: "Caricamento dati...", back: "Indietro",
         online: "CONNESSO", dailyDist: "📅 Pioggia in Corso (Ultimi 15 Giorni)",
         histRain: "📈 Distribuzione Storica (LTS)", monthlyDist: "📅 Pioggia in Corso Mensile",
+        last24Hours: "⏱️ Ultime 24 Ore",
         monthsFull: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
     }
 };
@@ -65,6 +68,13 @@ const t = trans[lang];
         <p id="loading" style="color: #9ca3af; font-family: 'JetBrains Mono', monospace;">{t.loadingData}</p>
 
         <div id="content" style="display:none;">
+            <div class="bento-grid" id="hourly-section" style="display:none;">
+                <div class="card col-12">
+                    <div class="card-title" id="hourly-title-text"></div>
+                    <div class="history-chart-grid" id="hourlyChart"></div>
+                </div>
+            </div>
+
             <div class="bento-grid">
                 <div class="card col-12">
                     <div class="card-title">{t.dailyDist}</div>
@@ -101,6 +111,104 @@ const t = trans[lang];
                 applyWeatherTone(data.weather_station.lux || 0, data.weather_station.is_raining);
             }
 
+            // --- HOURLY SECTION ---
+            if (data.hourly_acute_rain_24h && data.hourly_acute_rain_24h.length > 0) {
+                const hChart = document.getElementById('hourlyChart');
+                hChart.style.display = 'block';
+                hChart.style.paddingTop = '0';
+                
+                document.getElementById('hourly-title-text').innerText = t.last24Hours;
+
+                const points = data.hourly_acute_rain_24h;
+                const svgWidth = 800;
+                const svgHeight = 140;
+                
+                // Jump to y=4px to keep line high up without clipping the 2.5px stroke
+                const getY = (val) => val > 0 ? 4 : svgHeight;
+
+                let pathD = "";
+                let fillD = `M 0 ${svgHeight} `; // Ensure shadow polygon always bases at the bottom
+
+                const maxValH = Math.max(...points.map(d => d.value));
+
+                if (maxValH > 0) {
+                    points.forEach((point, i) => {
+                        const x = (i / (points.length - 1)) * svgWidth;
+                        const y = getY(point.value);
+                        
+                        if (i === 0) {
+                            if (point.value > 0) {
+                                pathD += `M ${x} ${y} `;
+                                fillD += `L ${x} ${y} `;
+                            } else {
+                                fillD += `L ${x} ${svgHeight} `;
+                            }
+                        } else {
+                            const prevPoint = points[i - 1];
+                            const prevY = getY(prevPoint.value);
+                            
+                            if (prevPoint.value === 0 && point.value > 0) {
+                                // Rain starts: Jump perfectly vertical up
+                                pathD += `M ${x} ${svgHeight} L ${x} ${y} `;
+                                fillD += `L ${x} ${svgHeight} L ${x} ${y} `;
+                            } else if (prevPoint.value > 0 && point.value === 0) {
+                                // Rain stops: Draw perfectly horizontal, then vertical down
+                                pathD += `L ${x} ${prevY} L ${x} ${svgHeight} `;
+                                fillD += `L ${x} ${prevY} L ${x} ${svgHeight} `;
+                            } else if (point.value > 0 && prevPoint.value > 0) {
+                                // Continuous Rain: Draw perfectly horizontal line
+                                pathD += `L ${x} ${y} `;
+                                fillD += `L ${x} ${y} `;
+                            } else {
+                                // No rain: Keep baseline
+                                fillD += `L ${x} ${svgHeight} `;
+                            }
+                        }
+                    });
+                    
+                    fillD += `L ${svgWidth} ${svgHeight} Z`;
+                }
+
+                let labelsHTML = '';
+                const numLabels = 24;
+                
+                for (let i = 0; i < numLabels; i++) {
+                    const pointIdx = Math.floor((i / (numLabels - 1)) * (points.length - 1));
+                    const hr = points[pointIdx] ? new Date(points[pointIdx].start).getHours() : '';
+                    labelsHTML += `
+                        <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
+                            <div class="chart-value" style="margin-top: 0.25rem;"></div>
+                            <div class="chart-label" style="margin-top: 0.8rem;">${hr}</div>
+                        </div>
+                    `;
+                }
+
+                hChart.innerHTML = `
+                    <div style="width: 100%; min-width: 1200px; display: flex; flex-direction: column;">
+                        <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none" style="width: 100%; height: 140px; overflow: visible;">
+                            <defs>
+                                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="${svgHeight}" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#00e5ff" />     
+                                    <stop offset="100%" stop-color="#0284c7" />   
+                                </linearGradient>
+                                <linearGradient id="maskGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="white" stop-opacity="0.5"/>
+                                    <stop offset="100%" stop-color="white" stop-opacity="0.1"/>
+                                </linearGradient>
+                                <mask id="fadeMask"><rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="url(#maskGrad)" /></mask>
+                            </defs>
+                            <path d="${fillD}" fill="url(#chartGrad)" mask="url(#fadeMask)" />
+                            <path d="${pathD}" fill="none" stroke="url(#chartGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px; width: 100%;">
+                            ${labelsHTML}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('hourly-section').style.display = 'block';
+            }
+
+            // --- DAILY SECTION ---
             if (data.daily_acute_rain_15d) {
                 const dChart = document.getElementById('daily-14d-chart');
                 const maxVal = Math.max(...data.daily_acute_rain_15d.map(d => d.percentage), 1);
@@ -124,6 +232,7 @@ const t = trans[lang];
                 });
             }
 
+            // --- MONTHLY SECTION ---
             const ltsWrap = document.getElementById('lts-wrapper');
             if (data.historical_acute_rain) {
                 const sortedYears = Object.keys(data.historical_acute_rain).sort((a, b) => b - a);
@@ -150,7 +259,7 @@ const t = trans[lang];
                         const stats = yearData[backendMonths[idx]];
                         const hasData = stats !== null && stats !== undefined && stats.percentage !== undefined;
                         
-                        if (!hasData) return; // Completely erase month if no data exists for sensor
+                        if (!hasData) return;
 
                         const valPct = stats.percentage;
                         const valMins = stats.minutes;
@@ -180,7 +289,7 @@ const t = trans[lang];
                     let targetCol = null;
                     for (let i = columns.length - 1; i >= 0; i--) {
                         const valText = columns[i].querySelector('.chart-value').innerText.trim();
-                        if (valText !== '-' && valText !== '--.-') {
+                        if (valText !== '-' && valText !== '--.-' && valText !== '0.0%') {
                             targetCol = columns[i];
                             break;
                         }

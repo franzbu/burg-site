@@ -170,6 +170,7 @@ export const GET: APIRoute = async () => {
     // --- Raw History Parser for Acute Rain ---
     let acuteDailyRaw: Record<string, number> = {};
     let acuteMonthlyRaw: Record<string, number> = {};
+    let hourlyAcuteRaw: Record<string, number> = {};
     let combinedRainHistory: any[] = [];
     
     acuteRainHistoryData.forEach((entityHistory: any[]) => {
@@ -203,12 +204,19 @@ export const GET: APIRoute = async () => {
                 nextMidnightLocal.setUTCHours(0, 0, 0, 0);
                 const nextMidnightUTC = nextMidnightLocal.getTime() - OFFSET_MS;
                 
-                const endT = Math.min(t, nextMidnightUTC);
+                const nextHourLocal = new Date(localStart);
+                nextHourLocal.setUTCHours(localStart.getUTCHours() + 1, 0, 0, 0);
+                const nextHourUTC = nextHourLocal.getTime() - OFFSET_MS;
+
+                const endT = Math.min(t, nextMidnightUTC, nextHourUTC);
                 const chunkSecs = (endT - tempT) / 1000;
                 
                 acuteDailyRaw[dateStr] = (acuteDailyRaw[dateStr] || 0) + chunkSecs;
                 const ymStr = `${year}-${monthName}`;
                 acuteMonthlyRaw[ymStr] = (acuteMonthlyRaw[ymStr] || 0) + chunkSecs;
+
+                const hourKey = localStart.toISOString().substring(0, 13) + ":00:00.000Z";
+                hourlyAcuteRaw[hourKey] = (hourlyAcuteRaw[hourKey] || 0) + chunkSecs;
                 
                 tempT = endT;
             }
@@ -229,24 +237,48 @@ export const GET: APIRoute = async () => {
             nextMidnightLocal.setUTCDate(localStart.getUTCDate() + 1);
             nextMidnightLocal.setUTCHours(0, 0, 0, 0);
             const nextMidnightUTC = nextMidnightLocal.getTime() - OFFSET_MS;
+
+            const nextHourLocal = new Date(localStart);
+            nextHourLocal.setUTCHours(localStart.getUTCHours() + 1, 0, 0, 0);
+            const nextHourUTC = nextHourLocal.getTime() - OFFSET_MS;
             
-            const endT = Math.min(t, nextMidnightUTC);
+            const endT = Math.min(t, nextMidnightUTC, nextHourUTC);
             const chunkSecs = (endT - tempT) / 1000;
             
             acuteDailyRaw[dateStr] = (acuteDailyRaw[dateStr] || 0) + chunkSecs;
             const ymStr = `${year}-${monthName}`;
             acuteMonthlyRaw[ymStr] = (acuteMonthlyRaw[ymStr] || 0) + chunkSecs;
+
+            const hourKey = localStart.toISOString().substring(0, 13) + ":00:00.000Z";
+            hourlyAcuteRaw[hourKey] = (hourlyAcuteRaw[hourKey] || 0) + chunkSecs;
             
             tempT = endT;
         }
     }
+
+    const hourlyAcuteRain24h = Array.from({ length: 24 }, (_, i) => {
+        const hourD = new Date(Date.now() - (23 - i) * 60 * 60 * 1000 + OFFSET_MS);
+        const hourKey = hourD.toISOString().substring(0, 13) + ":00:00.000Z";
+        const seconds = hourlyAcuteRaw[hourKey] || 0;
+        return { start: hourKey, value: seconds > 0 ? 1 : 0 };
+    });
 
     const dailyAcuteRain15d = Array.from({ length: 15 }, (_, i) => {
         const dDate = new Date(Date.now() - (14 - i) * 24 * 60 * 60 * 1000 + OFFSET_MS);
         const dateStr = `${dDate.getUTCDate().toString().padStart(2, '0')}.${(dDate.getUTCMonth() + 1).toString().padStart(2, '0')}`;
         const seconds = acuteDailyRaw[dateStr] || 0;
         const minutes = seconds / 60;
-        const percentage = Math.min(100, (seconds / 86400) * 100);
+        
+        let percentage = 0;
+        // Fix: Use elapsed time since local midnight for the current day
+        if (i === 14) {
+            const msSinceMidnight = Date.now() - (new Date(todayMidnightISO).getTime());
+            const secondsSinceMidnight = Math.max(1, msSinceMidnight / 1000);
+            percentage = Math.min(100, (seconds / secondsSinceMidnight) * 100);
+        } else {
+            percentage = Math.min(100, (seconds / 86400) * 100);
+        }
+
         return { date: dateStr, minutes: parseFloat(minutes.toFixed(1)), percentage: parseFloat(percentage.toFixed(1)) };
     });
 
@@ -388,7 +420,6 @@ export const GET: APIRoute = async () => {
     let irrToday = getHAState('sensor.garten_board_on_time_daily');
     if (irrToday === null || isNaN(irrToday)) irrToday = dailyIrr14d[14].value;
 
-    // --- Clean Backend Data Normalization (Fixes HA's UTC LTS bucket overlap) ---
     const ltsTodayVal = dailyIrr14d[14].value;
     if (irrToday !== null && ltsTodayVal !== irrToday) {
         const discrepancy = ltsTodayVal - irrToday;
@@ -403,7 +434,6 @@ export const GET: APIRoute = async () => {
             monthlyIrrArchive[currentY][monthName] = parseFloat(monthlyIrrArchive[currentY][monthName].toFixed(1));
         }
     }
-    // -----------------------------------------------------------------------------
 
     return new Response(JSON.stringify({
       weather_station: {
@@ -431,7 +461,8 @@ export const GET: APIRoute = async () => {
       },
       daily_rain_14d: formattedDaily14d, historical_rain: historicalRainArchive,
       daily_irr_14d: dailyIrr14d, historical_irr: monthlyIrrArchive,
-      daily_acute_rain_15d: dailyAcuteRain15d, historical_acute_rain: historicalAcuteRain
+      daily_acute_rain_15d: dailyAcuteRain15d, historical_acute_rain: historicalAcuteRain,
+      hourly_acute_rain_24h: hourlyAcuteRain24h
     }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=15' } });
 
   } catch (error: any) {
