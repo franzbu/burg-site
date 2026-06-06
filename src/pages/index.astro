@@ -79,7 +79,7 @@ const t = trans[lang];
     <title>{t.title}</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><rect width='24' height='24' fill='black'/><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#030303">
 </head>
@@ -299,18 +299,22 @@ const t = trans[lang];
 
         async function fetchLatestCameras() {
             try {
-                const res = await fetch(`${workerUrl}/history`);
+                // FIXED: Added prefix to fetch URL to bypass Cloudflare's 1000-item limit clutter!
+                const res = await fetch(`${workerUrl}/history?prefix=mountain_`);
                 if (!res.ok) throw new Error("Worker returned " + res.status);
                 const files = await res.json();
                 const mountainFiles = files.filter(f => f.name.startsWith('mountain_'));
                 if (mountainFiles.length > 0) {
                     const img = document.getElementById('latest-panorama-img');
                     const params = "width=600,quality=75,format=auto";
-                    img.src = `${workerUrl}/cdn-cgi/image/${params}/${mountainFiles[0].name}`;
+                    
+                    // FIXED: Reverted back to the first item (newest image)
+                    const newestFile = mountainFiles[0];
+                    img.src = `${workerUrl}/cdn-cgi/image/${params}/${newestFile.name}`;
                     
                     img.style.display = 'block';
                     document.getElementById('panorama-loading').style.display = 'none';
-                    document.getElementById('panorama-time').innerText = new Date(mountainFiles[0].time).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    document.getElementById('panorama-time').innerText = new Date(newestFile.time).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 } else {
                     document.getElementById('panorama-loading').innerText = "--";
                     document.getElementById('panorama-time').innerText = "";
