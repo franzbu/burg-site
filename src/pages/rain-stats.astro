@@ -1,31 +1,31 @@
 ---
-// src/pages/rain-stats.astro
+// src/pages/acute_rain-stats.astro
 const acceptLang = Astro.request.headers.get('accept-language') || 'de';
 const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
 const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
 
 const trans = {
     de: {
-        title: "Burg | Niederschlagsstatistik", head: "Burg - Niederschlag (LTS)", live: "Live-Betriebszentrum",
-        init: "INITIALISIERE...", loadingData: "Lade Niederschlagsdaten...", back: "Zurück",
-        online: "VERBUNDEN", dailyDist: "📅 Täglicher Niederschlag in mm - jeweils bis 7 Uhr",
-        histRain: "📈 Historische Niederschlagsstatistik (LTS)", monthlyDist: "📅 Monatliche Niederschlagsverteilung",
+        title: "Burg | Akuter Niederschlag", head: "Burg - Akuter Niederschlag (LTS)", live: "Live-Betriebszentrum",
+        init: "INITIALISIERE...", loadingData: "Lade Daten...", back: "Zurück",
+        online: "VERBUNDEN", dailyDist: "📅 Akuter Niederschlag (Letzte 15 Tage)",
+        histRain: "📈 Historische Verteilung (LTS)", monthlyDist: "📅 Monatlicher Akuter Niederschlag",
         last24Hours: "⏱️ Letzte 24 Stunden",
         monthsFull: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
     },
     en: {
-        title: "Burg | Precipitation Stats", head: "Burg - Precipitation (LTS)", live: "Live Operations Center",
-        init: "INITIALIZING...", loadingData: "Loading precipitation data...", back: "Back",
-        online: "CONNECTED", dailyDist: "📅 Daily Precipitation in mm",
-        histRain: "📈 Historical Precipitation Stats (LTS)", monthlyDist: "📅 Monthly Precipitation Distribution",
+        title: "Burg | Acute Rain Stats", head: "Burg - Acute Rain (LTS)", live: "Live Operations Center",
+        init: "INITIALIZING...", loadingData: "Loading data...", back: "Back",
+        online: "CONNECTED", dailyDist: "📅 Acute Rain (Last 15 Days)",
+        histRain: "📈 Historical Distribution (LTS)", monthlyDist: "📅 Monthly Acute Rain",
         last24Hours: "⏱️ Last 24 Hours",
         monthsFull: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     },
     it: {
-        title: "Burg | Statistiche Precipitazioni", head: "Burg - Precipitazioni (LTS)", live: "Centro Operativo Live",
-        init: "INIZIALIZZAZIONE...", loadingData: "Caricamento dati precipitazioni...", back: "Indietro",
-        online: "CONNESSO", dailyDist: "📅 Precipitazioni Giornaliere in mm - fino alle 7:00",
-        histRain: "📈 Statistiche Storiche Precipitazioni (LTS)", monthlyDist: "📅 Distribuzione Mensile Precipitazioni",
+        title: "Burg | Pioggia in Corso", head: "Burg - Pioggia in Corso (LTS)", live: "Centro Operativo Live",
+        init: "INIZIALIZZAZIONE...", loadingData: "Caricamento dati...", back: "Indietro",
+        online: "CONNESSO", dailyDist: "📅 Pioggia in Corso (Ultimi 15 Giorni)",
+        histRain: "📈 Distribuzione Storica (LTS)", monthlyDist: "📅 Pioggia in Corso Mensile",
         last24Hours: "⏱️ Ultime 24 Ore",
         monthsFull: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
     }
@@ -101,10 +101,7 @@ const t = trans[lang];
             weatherBg.style.filter = filterString;
         }
 
-        Promise.all([
-            fetch('/api/status').then(res => res.json()),
-            fetch('/api/temperature?entity_id=sensor.weather_sensor_plus_garten_total_rain').then(res => res.json())
-        ]).then(([data, tempData]) => {
+        fetch('/api/status').then(res => res.json()).then(data => {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('content').style.display = 'block';
             statusDot.className = "status-dot online";
@@ -114,119 +111,50 @@ const t = trans[lang];
                 applyWeatherTone(data.weather_station.lux || 0, data.weather_station.is_raining);
             }
 
-            // --- HOURLY SECTION ---
-            if (tempData && tempData.hourly && tempData.hourly.length > 0) {
+            // --- HOURLY SECTION (NEW BAR CHART) ---
+            if (data.hourly_acute_rain_24h && data.hourly_acute_rain_24h.length > 0) {
                 const hChart = document.getElementById('hourlyChart');
-                hChart.style.display = 'block';
-                hChart.style.paddingTop = '0';
+                document.getElementById('hourly-title-text').innerHTML = `${t.last24Hours} <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">(Max: 60m)</span>`;
                 
-                const points = tempData.hourly;
-                const realMaxH = Math.max(...points.map(d => d.mean));
-                const realMinH = Math.min(...points.map(d => d.mean));
-                let maxValH = realMaxH;
-                let minValH = 0; 
-                
-                document.getElementById('hourly-title-text').innerHTML = `${t.last24Hours} (in mm) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${realMinH.toFixed(1)} | Max: ${realMaxH.toFixed(1)}</span>`;
-
-                const padding = (maxValH - minValH) * 0.1 || 1;
-                maxValH += padding;
-                const rangeH = maxValH - minValH || 1;
-
-                const svgWidth = 800;
-                const svgHeight = 140;
-                
-                const getY = (val) => svgHeight - (((val - minValH) / rangeH) * svgHeight);
-
-                let pathD = "";
-                let fillD = "";
-
-                if (realMaxH > 0) {
-                    points.forEach((point, i) => {
-                        const x = (i / (points.length - 1)) * svgWidth;
-                        const y = getY(point.mean);
-                        
-                        if (i === 0) {
-                            if (point.mean > 0) {
-                                pathD += `M ${x} ${y} `;
-                                fillD += `M ${x} ${svgHeight} L ${x} ${y} `;
-                            }
-                        } else {
-                            const prevPoint = points[i - 1];
-                            if (point.mean > 0 || prevPoint.mean > 0) {
-                                if (prevPoint.mean === 0 && point.mean > 0) {
-                                    const prevX = ((i - 1) / (points.length - 1)) * svgWidth;
-                                    pathD += `M ${prevX} ${svgHeight} L ${x} ${y} `;
-                                    fillD += `M ${prevX} ${svgHeight} L ${x} ${y} `;
-                                } else {
-                                    pathD += `L ${x} ${y} `;
-                                    fillD += `L ${x} ${y} `;
-                                }
-                            }
-                        }
-                    });
+                data.hourly_acute_rain_24h.forEach(point => {
+                    const hr = new Date(point.start).getHours();
+                    const mins = point.minutes;
+                    const pct = mins <= 0 ? 0 : Math.max(1, (mins / 60) * 100);
+                    const barHtml = mins <= 0 ? '' : `<div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(0, 229, 255, 0.2), #00e5ff); opacity: 1.0;"></div>`;
                     
-                    if (points[points.length - 1].mean > 0) {
-                        fillD += `L ${svgWidth} ${svgHeight} Z`;
-                    } else if (fillD !== "") {
-                        fillD += `Z`;
-                    }
-                }
+                    const valStr = mins > 0 ? Math.round(mins) + 'm' : '-';
 
-                let labelsHTML = '';
-                const numLabels = 24;
-                
-                for (let i = 0; i < numLabels; i++) {
-                    const pointIdx = Math.floor((i / (numLabels - 1)) * (points.length - 1));
-                    const val = points[pointIdx] ? points[pointIdx].mean.toFixed(1) : '--.-';
-                    const hr = points[pointIdx] ? new Date(points[pointIdx].start).getHours() : '';
-                    labelsHTML += `
-                        <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-                            <div class="chart-value" style="margin-top: 0.25rem;">${val}</div>
+                    hChart.innerHTML += `
+                        <div class="chart-column">
+                            <div class="chart-bar-container" ${mins <= 0 ? 'style="border-style:dashed;opacity:0.2"' : ''}>
+                                ${barHtml}
+                            </div>
+                            <div class="chart-value">${valStr}</div>
                             <div class="chart-label">${hr}</div>
                         </div>
                     `;
-                }
-
-                hChart.innerHTML = `
-                    <div style="width: 100%; min-width: 1200px; display: flex; flex-direction: column;">
-                        <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none" style="width: 100%; height: 140px; overflow: visible;">
-                            <defs>
-                                <linearGradient id="chartGrad" x1="0" y1="${getY(maxValH)}" x2="0" y2="${getY(minValH)}" gradientUnits="userSpaceOnUse">
-                                    <stop offset="0%" stop-color="#00e5ff" />     
-                                    <stop offset="100%" stop-color="#0284c7" />   
-                                </linearGradient>
-                                <linearGradient id="maskGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="white" stop-opacity="0.4"/>
-                                    <stop offset="100%" stop-color="white" stop-opacity="0.0"/>
-                                </linearGradient>
-                                <mask id="fadeMask"><rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="url(#maskGrad)" /></mask>
-                            </defs>
-                            <path d="${fillD}" fill="url(#chartGrad)" mask="url(#fadeMask)" />
-                            <path d="${pathD}" fill="none" stroke="url(#chartGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <div style="display: flex; justify-content: space-between; margin-top: 5px; width: 100%;">
-                            ${labelsHTML}
-                        </div>
-                    </div>
-                `;
+                });
                 document.getElementById('hourly-section').style.display = 'block';
             }
 
             // --- DAILY SECTION ---
-            if (data.daily_rain_14d) {
+            if (data.daily_acute_rain_15d) {
                 const dChart = document.getElementById('daily-14d-chart');
-                const maxVal = Math.max(...data.daily_rain_14d.map(d => d.value), 1);
+                const maxVal = Math.max(...data.daily_acute_rain_15d.map(d => d.percentage), 1);
                 
-                data.daily_rain_14d.forEach(day => {
-                    const pct = day.value <= 0 ? 0 : Math.max(1, (day.value / maxVal) * 100);
-                    const barHtml = day.value <= 0 ? '' : `<div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(0, 229, 255, 0.2), #00e5ff); opacity: 1.0;"></div>`;
+                data.daily_acute_rain_15d.forEach(day => {
+                    const pct = day.percentage <= 0 ? 0 : Math.max(1, (day.percentage / maxVal) * 100);
+                    const barHtml = day.percentage <= 0 ? '' : `<div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(0, 229, 255, 0.2), #00e5ff); opacity: 1.0;"></div>`;
                     
+                    const timeStr = day.minutes > 60 ? `${Math.floor(day.minutes/60)}h ${Math.floor(day.minutes%60)}m` : `${Math.floor(day.minutes)}m`;
+
                     dChart.innerHTML += `
                         <div class="chart-column">
+                            <div class="chart-value" style="font-size: 0.65rem; color: #9ca3af; margin-bottom: 0.3rem;">${timeStr}</div>
                             <div class="chart-bar-container">
                                 ${barHtml}
                             </div>
-                            <div class="chart-value">${day.value.toFixed(1)}</div>
+                            <div class="chart-value">${day.percentage.toFixed(1)}%</div>
                             <div class="chart-label">${day.date}</div>
                         </div>
                     `;
@@ -235,40 +163,48 @@ const t = trans[lang];
 
             // --- MONTHLY SECTION ---
             const ltsWrap = document.getElementById('lts-wrapper');
-            if (data.historical_rain) {
-                const sortedYears = Object.keys(data.historical_rain).sort((a, b) => b - a);
+            if (data.historical_acute_rain) {
+                const sortedYears = Object.keys(data.historical_acute_rain).sort((a, b) => b - a);
                 
                 sortedYears.forEach(year => {
                     ltsWrap.innerHTML += `
                         <h2 class="section-title">${t.histRain}</h2>
                         <div class="bento-grid">
                             <div class="card col-12">
-                                <div class="card-title">${t.monthlyDist} (${year} in mm)</div>
+                                <div class="card-title">${t.monthlyDist} (${year})</div>
                                 <div class="history-chart-grid" id="chart-${year}"></div>
                             </div>
                         </div>
                     `;
                     const target = document.getElementById(`chart-${year}`);
                     const months = t.monthsFull;
-                    const yearData = data.historical_rain[year];
-                    const maxM = Math.max(...Object.values(yearData).map(v => v || 0), 1);
+                    const yearData = data.historical_acute_rain[year];
+                    
+                    const validPcts = Object.values(yearData).filter(v => v !== null && v.percentage !== undefined).map(v => v.percentage);
+                    const maxM = validPcts.length > 0 ? Math.max(...validPcts, 1) : 1;
 
                     months.forEach((m, idx) => {
                         const backendMonths = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-                        const val = yearData[backendMonths[idx]];
-                        const hasData = val !== null && val !== undefined;
+                        const stats = yearData[backendMonths[idx]];
+                        const hasData = stats !== null && stats !== undefined && stats.percentage !== undefined;
                         
-                        if (!hasData) return; // FIX: Completely erase month if no data
+                        if (!hasData) return; // Completely erase month if no data exists for sensor
 
-                        const pct = (val <= 0) ? 0 : Math.max(1, (val / maxM) * 100);
-                        const barHtml = (val <= 0) ? '' : `<div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(30, 58, 138, 0.4), #1e3a8a); opacity: 1.0;"></div>`;
+                        const valPct = stats.percentage;
+                        const valMins = stats.minutes;
                         
+                        const pct = (valPct <= 0) ? 0 : Math.max(1, (valPct / maxM) * 100);
+                        const barHtml = (valPct <= 0) ? '' : `<div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(30, 58, 138, 0.4), #1e3a8a); opacity: 1.0;"></div>`;
+                        
+                        const timeStr = valMins > 60 ? `${Math.floor(valMins/60)}h ${Math.floor(valMins%60)}m` : `${Math.floor(valMins)}m`;
+
                         target.innerHTML += `
                             <div class="chart-column">
-                                <div class="chart-bar-container">
+                                <div class="chart-value" style="font-size: 0.65rem; color: #9ca3af; margin-bottom: 0.3rem;">${timeStr}</div>
+                                <div class="chart-bar-container" style="${!hasData ? 'border-style:dashed;opacity:0.2' : ''}">
                                     ${barHtml}
                                 </div>
-                                <div class="chart-value">${val.toFixed(1)}</div>
+                                <div class="chart-value">${valPct.toFixed(1)}%</div>
                                 <div class="chart-label">${m.substring(0,3)}</div>
                             </div>
                         `;
@@ -282,7 +218,7 @@ const t = trans[lang];
                     let targetCol = null;
                     for (let i = columns.length - 1; i >= 0; i--) {
                         const valText = columns[i].querySelector('.chart-value').innerText.trim();
-                        if (valText !== '-' && valText !== '--.-') {
+                        if (valText !== '-' && valText !== '--.-' && valText !== '0.0%') {
                             targetCol = columns[i];
                             break;
                         }

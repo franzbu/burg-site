@@ -256,11 +256,13 @@ export const GET: APIRoute = async () => {
         }
     }
 
+    // FIXED: Outputs the precise duration in minutes for exactly how long it rained each hour
     const hourlyAcuteRain24h = Array.from({ length: 24 }, (_, i) => {
         const hourD = new Date(Date.now() - (23 - i) * 60 * 60 * 1000 + OFFSET_MS);
         const hourKey = hourD.toISOString().substring(0, 13) + ":00:00.000Z";
         const seconds = hourlyAcuteRaw[hourKey] || 0;
-        return { start: hourKey, value: seconds > 0 ? 1 : 0 };
+        const minutes = seconds / 60;
+        return { start: hourKey, minutes: parseFloat(minutes.toFixed(1)) };
     });
 
     const dailyAcuteRain15d = Array.from({ length: 15 }, (_, i) => {
@@ -270,7 +272,6 @@ export const GET: APIRoute = async () => {
         const minutes = seconds / 60;
         
         let percentage = 0;
-        // Fix: Use elapsed time since local midnight for the current day
         if (i === 14) {
             const msSinceMidnight = Date.now() - (new Date(todayMidnightISO).getTime());
             const secondsSinceMidnight = Math.max(1, msSinceMidnight / 1000);
