@@ -111,100 +111,29 @@ const t = trans[lang];
                 applyWeatherTone(data.weather_station.lux || 0, data.weather_station.is_raining);
             }
 
-            // --- HOURLY SECTION ---
+            // --- HOURLY SECTION (NEW BAR CHART) ---
             if (data.hourly_acute_rain_24h && data.hourly_acute_rain_24h.length > 0) {
                 const hChart = document.getElementById('hourlyChart');
-                hChart.style.display = 'block';
-                hChart.style.paddingTop = '0';
+                document.getElementById('hourly-title-text').innerHTML = `${t.last24Hours} <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">(Max: 60m)</span>`;
                 
-                document.getElementById('hourly-title-text').innerText = t.last24Hours;
-
-                const points = data.hourly_acute_rain_24h;
-                const svgWidth = 800;
-                const svgHeight = 140;
-                
-                // Jump to y=4px to keep line high up without clipping the 2.5px stroke
-                const getY = (val) => val > 0 ? 4 : svgHeight;
-
-                let pathD = "";
-                let fillD = `M 0 ${svgHeight} `; // Ensure shadow polygon always bases at the bottom
-
-                const maxValH = Math.max(...points.map(d => d.value));
-
-                if (maxValH > 0) {
-                    points.forEach((point, i) => {
-                        const x = (i / (points.length - 1)) * svgWidth;
-                        const y = getY(point.value);
-                        
-                        if (i === 0) {
-                            if (point.value > 0) {
-                                pathD += `M ${x} ${y} `;
-                                fillD += `L ${x} ${y} `;
-                            } else {
-                                fillD += `L ${x} ${svgHeight} `;
-                            }
-                        } else {
-                            const prevPoint = points[i - 1];
-                            const prevY = getY(prevPoint.value);
-                            
-                            if (prevPoint.value === 0 && point.value > 0) {
-                                // Rain starts: Jump perfectly vertical up
-                                pathD += `M ${x} ${svgHeight} L ${x} ${y} `;
-                                fillD += `L ${x} ${svgHeight} L ${x} ${y} `;
-                            } else if (prevPoint.value > 0 && point.value === 0) {
-                                // Rain stops: Draw perfectly horizontal, then vertical down
-                                pathD += `L ${x} ${prevY} L ${x} ${svgHeight} `;
-                                fillD += `L ${x} ${prevY} L ${x} ${svgHeight} `;
-                            } else if (point.value > 0 && prevPoint.value > 0) {
-                                // Continuous Rain: Draw perfectly horizontal line
-                                pathD += `L ${x} ${y} `;
-                                fillD += `L ${x} ${y} `;
-                            } else {
-                                // No rain: Keep baseline
-                                fillD += `L ${x} ${svgHeight} `;
-                            }
-                        }
-                    });
+                data.hourly_acute_rain_24h.forEach(point => {
+                    const hr = new Date(point.start).getHours();
+                    const mins = point.minutes;
+                    const pct = mins <= 0 ? 0 : Math.max(1, (mins / 60) * 100);
+                    const barHtml = mins <= 0 ? '' : `<div class="chart-bar" style="height: ${pct}%; background: linear-gradient(to top, rgba(0, 229, 255, 0.2), #00e5ff); opacity: 1.0;"></div>`;
                     
-                    fillD += `L ${svgWidth} ${svgHeight} Z`;
-                }
+                    const valStr = mins > 0 ? Math.round(mins) + 'm' : '-';
 
-                let labelsHTML = '';
-                const numLabels = 24;
-                
-                for (let i = 0; i < numLabels; i++) {
-                    const pointIdx = Math.floor((i / (numLabels - 1)) * (points.length - 1));
-                    const hr = points[pointIdx] ? new Date(points[pointIdx].start).getHours() : '';
-                    labelsHTML += `
-                        <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-                            <div class="chart-value" style="margin-top: 0.25rem;"></div>
-                            <div class="chart-label" style="margin-top: 0.8rem;">${hr}</div>
+                    hChart.innerHTML += `
+                        <div class="chart-column">
+                            <div class="chart-bar-container" ${mins <= 0 ? 'style="border-style:dashed;opacity:0.2"' : ''}>
+                                ${barHtml}
+                            </div>
+                            <div class="chart-value">${valStr}</div>
+                            <div class="chart-label">${hr}</div>
                         </div>
                     `;
-                }
-
-                hChart.innerHTML = `
-                    <div style="width: 100%; min-width: 1200px; display: flex; flex-direction: column;">
-                        <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none" style="width: 100%; height: 140px; overflow: visible;">
-                            <defs>
-                                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="${svgHeight}" gradientUnits="userSpaceOnUse">
-                                    <stop offset="0%" stop-color="#00e5ff" />     
-                                    <stop offset="100%" stop-color="#0284c7" />   
-                                </linearGradient>
-                                <linearGradient id="maskGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="white" stop-opacity="0.5"/>
-                                    <stop offset="100%" stop-color="white" stop-opacity="0.1"/>
-                                </linearGradient>
-                                <mask id="fadeMask"><rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="url(#maskGrad)" /></mask>
-                            </defs>
-                            <path d="${fillD}" fill="url(#chartGrad)" mask="url(#fadeMask)" />
-                            <path d="${pathD}" fill="none" stroke="url(#chartGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <div style="display: flex; justify-content: space-between; margin-top: 5px; width: 100%;">
-                            ${labelsHTML}
-                        </div>
-                    </div>
-                `;
+                });
                 document.getElementById('hourly-section').style.display = 'block';
             }
 
@@ -259,7 +188,7 @@ const t = trans[lang];
                         const stats = yearData[backendMonths[idx]];
                         const hasData = stats !== null && stats !== undefined && stats.percentage !== undefined;
                         
-                        if (!hasData) return;
+                        if (!hasData) return; // Completely erase month if no data exists for sensor
 
                         const valPct = stats.percentage;
                         const valMins = stats.minutes;
