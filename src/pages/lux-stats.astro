@@ -1,8 +1,9 @@
 ---
 // src/pages/lux-stats.astro
-const acceptLang = Astro.request.headers.get('accept-language') || 'de';
-const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
-const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+import { resolveBurgLanguage } from '../lib/burg/locale';
+import { luxStatsEntityLabels } from '../lib/burg/metrics';
+
+const lang = resolveBurgLanguage(Astro.request.headers.get('accept-language'));
 
 const trans = {
     de: {
@@ -13,9 +14,6 @@ const trans = {
         last15Days: "📅 Letzte 15 Tage (Tageswerte in", histData: "📈 Historische Daten (LTS)",
         monthlyData: "📅 Monatswerte",
         monthsShort: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
-        entities: {
-            'sensor.weather_sensor_plus_garten_illumination': { name: 'Helligkeit', unit: ' lx' }
-        }
     },
     en: {
         title: "Burg | Brightness Data", head: "Burg - Brightness (LTS)", loadData: "Loading Data...",
@@ -25,9 +23,6 @@ const trans = {
         last15Days: "📅 Last 15 Days (Daily values in", histData: "📈 Historical Data (LTS)",
         monthlyData: "📅 Monthly Values",
         monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        entities: {
-            'sensor.weather_sensor_plus_garten_illumination': { name: 'Brightness', unit: ' lx' }
-        }
     },
     it: {
         title: "Burg | Dati Luminosità", head: "Burg - Luminosità (LTS)", loadData: "Caricamento Dati...",
@@ -37,12 +32,9 @@ const trans = {
         last15Days: "📅 Ultimi 15 Giorni (Valori giornalieri in", histData: "📈 Dati Storici (LTS)",
         monthlyData: "📅 Valori Mensili",
         monthsShort: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
-        entities: {
-            'sensor.weather_sensor_plus_garten_illumination': { name: 'Luminosità', unit: ' lx' }
-        }
     }
 };
-const t = trans[lang];
+const t = { ...trans[lang], entities: luxStatsEntityLabels(lang) };
 ---
 <!DOCTYPE html>
 <html lang={lang}>

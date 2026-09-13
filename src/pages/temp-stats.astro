@@ -1,8 +1,9 @@
 ---
 // src/pages/temp-stats.astro
-const acceptLang = Astro.request.headers.get('accept-language') || 'de';
-const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
-const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+import { resolveBurgLanguage } from '../lib/burg/locale';
+import { tempStatsEntityLabels } from '../lib/burg/metrics';
+
+const lang = resolveBurgLanguage(Astro.request.headers.get('accept-language'));
 
 const trans = {
     de: {
@@ -13,19 +14,6 @@ const trans = {
         last15Days: "📅 Letzte 15 Tage (Tageswerte in", histData: "📈 Historische Daten (LTS)",
         monthlyData: "📅 Monatswerte",
         monthsShort: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
-        entities: {
-            'sensor.weather_sensor_plus_garten_temperature': { name: 'Außentemperatur', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_north_temperature': { name: 'Nord-Fassade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature': { name: 'Süd-Fassade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature': { name: 'Ost-Fassade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature': { name: 'West-Fassade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature': { name: 'West-Fassade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_garten_temperature': { name: 'Gewächshaus (Temperatur)', unit: '°' },
-            'sensor.weather_sensor_plus_garten_wind_speed': { name: 'Windgeschwindigkeit', unit: ' km/h' },
-            'sensor.weather_sensor_plus_garten_humidity': { name: 'Luftfeuchtigkeit', unit: '%' },
-            'sensor.weather_sensor_plus_garten_total_sunshine_duration': { name: 'Sonnenscheindauer', unit: ' min' },
-            'sensor.switching_and_measuring_cable_outdoor_energy_counter': { name: 'Heizenergie (Gewächshaus)', unit: ' kWh' }
-        }
     },
     en: {
         title: "Burg | Historical Data", head: "Burg - Historical Data (LTS)", loadData: "Loading Data...",
@@ -35,19 +23,6 @@ const trans = {
         last15Days: "📅 Last 15 Days (Daily values in", histData: "📈 Historical Data (LTS)",
         monthlyData: "📅 Monthly Values",
         monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        entities: {
-            'sensor.weather_sensor_plus_garten_temperature': { name: 'Outdoor Temperature', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_north_temperature': { name: 'North Facade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature': { name: 'South Facade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature': { name: 'East Facade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature': { name: 'West Facade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature': { name: 'West Facade', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_garten_temperature': { name: 'Greenhouse (Temperature)', unit: '°' },
-            'sensor.weather_sensor_plus_garten_wind_speed': { name: 'Wind Speed', unit: ' km/h' },
-            'sensor.weather_sensor_plus_garten_humidity': { name: 'Humidity', unit: '%' },
-            'sensor.weather_sensor_plus_garten_total_sunshine_duration': { name: 'Sunshine Duration', unit: ' min' },
-            'sensor.switching_and_measuring_cable_outdoor_energy_counter': { name: 'Heating Energy (Greenhouse)', unit: ' kWh' }
-        }
     },
     it: {
         title: "Burg | Dati Storici", head: "Burg - Dati Storici (LTS)", loadData: "Caricamento Dati...",
@@ -57,22 +32,9 @@ const trans = {
         last15Days: "📅 Ultimi 15 Giorni (Valori giornalieri in", histData: "📈 Dati Storici (LTS)",
         monthlyData: "📅 Valori Mensili",
         monthsShort: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
-        entities: {
-            'sensor.weather_sensor_plus_garten_temperature': { name: 'Temperatura Esterna', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_north_temperature': { name: 'Facciata Nord', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature': { name: 'Facciata Sud', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature': { name: 'Facciata Est', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_house_west_temperature': { name: 'Facciata Ovest', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_west_temperature': { name: 'Facciata Ovest', unit: '°' },
-            'sensor.temperature_and_humidity_sensor_outdoor_garten_temperature': { name: 'Serra (Temperatura)', unit: '°' },
-            'sensor.weather_sensor_plus_garten_wind_speed': { name: 'Velocità Vento', unit: ' km/h' },
-            'sensor.weather_sensor_plus_garten_humidity': { name: 'Umidità', unit: '%' },
-            'sensor.weather_sensor_plus_garten_total_sunshine_duration': { name: 'Durata Sole', unit: ' min' },
-            'sensor.switching_and_measuring_cable_outdoor_energy_counter': { name: 'Energia Riscaldamento (Serra)', unit: ' kWh' }
-        }
     }
 };
-const t = trans[lang];
+const t = { ...trans[lang], entities: tempStatsEntityLabels(lang) };
 ---
 <!DOCTYPE html>
 <html lang={lang}>

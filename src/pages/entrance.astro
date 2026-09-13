@@ -1,8 +1,8 @@
 ---
 // src/pages/entrance.astro
-const acceptLang = Astro.request.headers.get('accept-language') || 'de';
-const prefs = acceptLang.toLowerCase().split(',').map(l => l.trim().substring(0, 2));
-const lang = prefs.find(l => ['de', 'en', 'it'].includes(l)) || 'de';
+import { resolveBurgLanguage } from '../lib/burg/locale';
+
+const lang = resolveBurgLanguage(Astro.request.headers.get('accept-language'));
 
 const trans = {
     de: { 
