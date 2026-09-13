@@ -2,6 +2,12 @@
 // src/pages/entrance.astro
 import { resolveBurgLanguage } from '../lib/burg/locale';
 
+import BurgHead from '../components/burg/BurgHead.astro';
+import FloatingBack from '../components/burg/FloatingBack.astro';
+import WeatherBackdrop from '../components/burg/WeatherBackdrop.astro';
+import BurgHeader from '../components/burg/BurgHeader.astro';
+import '../styles/burg-tokens.css';
+
 const lang = resolveBurgLanguage(Astro.request.headers.get('accept-language'));
 
 const trans = {
@@ -32,36 +38,39 @@ const t = trans[lang];
 <!DOCTYPE html>
 <html lang={lang}>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{t.title}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><rect width='24' height='24' fill='black'/><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>">
-    <meta name="theme-color" content="#030303">
+    <BurgHead
+        title={t.title}
+        manifest={false}
+    />
 </head>
 <body>
+    <FloatingBack label={t.back} />
 
-    <div class="floating-back clickable" onclick="if(window.opener){window.close();}else{window.location.href='/';}">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        <span>{t.back}</span>
-    </div>
-
-    <div id="weather-bg" style="background-image: url('/garten_bg.webp');"></div>
+    <WeatherBackdrop image="/garten_bg.webp" />
 
     <div class="container">
-        <header>
-            <div class="brand">
-                <h1>{t.head}</h1>
-            </div>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <button id="delete-all-btn" class="delete-all-btn" onclick="deleteAllImages()">{t.deleteAll}</button>
-                <div class="status-badge">
-                    <div id="status-indicator" class="status-dot"></div>
-                    <span id="status-text">{t.init}</span>
+        <BurgHeader title={t.head}>
+            <Fragment slot="actions">
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <button
+                        id="delete-all-btn"
+                        class="delete-all-btn"
+                        onclick="deleteAllImages()"
+                    >{t.deleteAll}</button>
+
+                    <div class="status-badge">
+                        <div
+                            id="status-indicator"
+                            class="status-dot"
+                        ></div>
+
+                        <span id="status-text">
+                            {t.init}
+                        </span>
+                    </div>
                 </div>
-            </div>
-        </header>
+            </Fragment>
+        </BurgHeader>
 
         <p id="loading" style="color: #9ca3af; font-family: 'JetBrains Mono', monospace; text-align: center; margin-top: 2rem;">{t.loading}</p>
 
@@ -208,7 +217,6 @@ const t = trans[lang];
 </html>
 
 <style is:global>
-    :root { --bg: #030303; --card-bg: rgba(14, 14, 14, 0.65); --card-border: rgba(214, 175, 55, 0.09); --accent: #ca9f1b; --success: #10b981; --text-main: #f3f4f6; --text-dim: #9ca3af; }
     #weather-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background-size: cover; background-position: center center; background-repeat: no-repeat; filter: brightness(0.4) saturate(0.8) blur(5px); }
     .floating-back { position: fixed; top: max(1.5rem, env(safe-area-inset-top)); left: max(1.5rem, env(safe-area-inset-left)); z-index: 999; display: flex; align-items: center; gap: 0.5rem; background: rgba(14, 14, 14, 0.65); border: 1px solid rgba(255, 255, 255, 0.09); backdrop-filter: blur(20px); padding: 0.5rem 1rem 0.5rem 0.5rem; border-radius: 100px; color: var(--text-main); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s; cursor: pointer; }
     .floating-back:hover { border-color: rgba(214, 175, 55, 0.25); background: rgba(255, 255, 255, 0.05); transform: scale(1.02); }

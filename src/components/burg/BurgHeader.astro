@@ -1,0 +1,65 @@
+---
+interface Props {
+  title: string;
+
+  subtitle?: string;
+  subtitleId?: string;
+  subtitleStyle?: string;
+
+  statusText?: string;
+  statusOnline?: boolean;
+}
+
+const {
+  title,
+  subtitle,
+  subtitleId,
+  subtitleStyle,
+  statusText,
+  statusOnline = false,
+} = Astro.props;
+
+const hasActions =
+  Astro.slots.has(
+    "actions"
+  );
+---
+<header>
+  <div class="brand">
+    <h1>{title}</h1>
+
+    {
+      subtitle !== undefined && (
+        <p
+          id={subtitleId}
+          style={subtitleStyle}
+        >
+          {subtitle}
+        </p>
+      )
+    }
+  </div>
+
+  {
+    hasActions ? (
+      <slot name="actions" />
+    ) : (
+      <div class="status-badge">
+        <div
+          id="status-indicator"
+          class:list={[
+            "status-dot",
+            {
+              online:
+                statusOnline,
+            },
+          ]}
+        ></div>
+
+        <span id="status-text">
+          {statusText}
+        </span>
+      </div>
+    )
+  }
+</header>

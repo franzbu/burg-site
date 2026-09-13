@@ -1,0 +1,19 @@
+:root {
+  --bg: #030303;
+
+  --card-bg:
+    rgba(14, 14, 14, 0.65);
+
+  --card-border:
+    rgba(214, 175, 55, 0.09);
+
+  --card-border-hover:
+    rgba(214, 175, 55, 0.25);
+
+  --accent: #ca9f1b;
+  --success: #10b981;
+
+  --text-main: #f3f4f6;
+  --text-muted: #4b5563;
+  --text-dim: #9ca3af;
+}
