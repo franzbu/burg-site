@@ -3,19 +3,18 @@ import { env } from "cloudflare:workers";
 
 export const GET: APIRoute = async () => {
   try {
-    const { HISTORY_API_TOKEN, CF_CLIENT_ID, CF_CLIENT_SECRET } = env;
-    if (!HISTORY_API_TOKEN || !CF_CLIENT_ID || !CF_CLIENT_SECRET) {
+    const { HISTORY_API_TOKEN, BURG_API_TOKEN } = env;
+    if (!HISTORY_API_TOKEN || !BURG_API_TOKEN) {
       return new Response(JSON.stringify({ error: "MISSING_SECRETS" }), { status: 200 });
     }
 
-    const accessHeaders = {
-      'CF-Access-Client-Id': CF_CLIENT_ID.trim(),
-      'CF-Access-Client-Secret': CF_CLIENT_SECRET.trim()
+    const burgHeaders = {
+      'Authorization': `Bearer ${BURG_API_TOKEN.trim()}`
     };
 
     const [mpResponse, historyResponse] = await Promise.all([
-      fetch("https://mp.gitor.uk/status", {
-        headers: accessHeaders
+      fetch("https://mp.gitor.uk/api/mobile/site-status", {
+        headers: burgHeaders
       }),
       fetch("https://mp.gitor.uk/history-api/v1/site-status", {
         headers: {
