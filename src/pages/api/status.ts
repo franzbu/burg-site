@@ -142,6 +142,10 @@ export const GET: APIRoute = async () => {
 
         heater_energy:
           history.heater_energy
+          ?? null,
+
+        heater_energy_today:
+          history.heater_energy_today
           ?? null
       },
 

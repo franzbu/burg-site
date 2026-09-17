@@ -18,7 +18,7 @@ const trans = {
         online: "VERBUNDEN", errorNet: "Netzwerkfehler.", errorPrefix: "Fehler: ",
         last24Hours: "⏱️ Letzte 24 Stunden",
         last15Days: "📅 Letzte 15 Tage (Tageswerte in", histData: "📈 Historische Daten (LTS)",
-        monthlyData: "📅 Monatswerte",
+        monthlyData: "📅 Monatswerte", highestDay: "Höchster Tag",
         monthsShort: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
     },
     en: {
@@ -27,7 +27,7 @@ const trans = {
         online: "CONNECTED", errorNet: "Network Error.", errorPrefix: "Error: ",
         last24Hours: "⏱️ Last 24 Hours",
         last15Days: "📅 Last 15 Days (Daily values in", histData: "📈 Historical Data (LTS)",
-        monthlyData: "📅 Monthly Values",
+        monthlyData: "📅 Monthly Values", highestDay: "Highest day",
         monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
     },
     it: {
@@ -36,7 +36,7 @@ const trans = {
         online: "CONNESSO", errorNet: "Errore di Rete.", errorPrefix: "Errore: ",
         last24Hours: "⏱️ Ultime 24 Ore",
         last15Days: "📅 Ultimi 15 Giorni (Valori giornalieri in", histData: "📈 Dati Storici (LTS)",
-        monthlyData: "📅 Valori Mensili",
+        monthlyData: "📅 Valori Mensili", highestDay: "Giorno massimo",
         monthsShort: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
     }
 };
@@ -129,6 +129,8 @@ const t = { ...trans[lang], entities: tempStatsEntityLabels(lang) };
                 const cleanUnit = entityInfo.unit.trim();
                 const unitSuffix = cleanUnit === '°' ? '°' : '';
                 const isHumidity = entity === 'sensor.weather_sensor_plus_garten_humidity';
+                const isHeatingEnergy =
+                    entity === 'sensor.switching_and_measuring_cable_outdoor_energy_counter';
                 
                 const hideBarMinMax = entity === 'sensor.switching_and_measuring_cable_outdoor_energy_counter' || 
                                       entity === 'sensor.weather_sensor_plus_garten_total_sunshine_duration';
@@ -236,7 +238,10 @@ const t = { ...trans[lang], entities: tempStatsEntityLabels(lang) };
                     const realMaxD = Math.max(...data.daily.map(d => d.max !== null && d.max !== undefined ? d.max : d.mean));
                     const realMinD = Math.min(...data.daily.map(d => d.min !== null && d.min !== undefined ? d.min : d.mean));
                     
-                    document.getElementById('daily-title-text').innerHTML = `${t.last15Days} ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${realMinD.toFixed(1)}${unitSuffix} | Max: ${realMaxD.toFixed(1)}${unitSuffix}</span>`;
+                    document.getElementById('daily-title-text').innerHTML =
+                        isHeatingEnergy
+                            ? `${t.last15Days} ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">${t.highestDay}: ${realMaxD.toFixed(1)} kWh</span>`
+                            : `${t.last15Days} ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${realMinD.toFixed(1)}${unitSuffix} | Max: ${realMaxD.toFixed(1)}${unitSuffix}</span>`;
 
                     let maxVal = Math.max(realMaxD, 1);
                     let minVal = Math.min(realMinD, 0);
@@ -303,7 +308,7 @@ const t = { ...trans[lang], entities: tempStatsEntityLabels(lang) };
                         
                         let html = `
                             <div class="card col-12" style="margin-bottom: 20px;">
-                                <div class="card-title">${t.monthlyData} (${year} in ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${yMinText} | Max: ${yMaxText}</span></div>
+                                <div class="card-title">${t.monthlyData} (${year} in ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">${isHeatingEnergy ? `${t.highestDay}: ${yMax} kWh` : `Min: ${yMinText} | Max: ${yMaxText}`}</span></div>
                                 <div class="history-chart-grid">
                         `;
 

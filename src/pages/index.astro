@@ -16,7 +16,7 @@ const trans = {
         init: "INITIALISIERE...", loading: "LÄDT...", outdoor: "☀️ Außentemperatur",
         sysAvg: "System-Mittel", brightness: "Helligkeit", facades: "🏛️ Hausfassaden",
         north: "Nord-Fassade", south: "Süd-Fassade", east: "Ost-Fassade", west: "West-Fassade",
-        greenhouse: "🌿 Gewächshaus", watchdog: "Heizungs-Watchdog", heatingEnergy: "Heizenergie",
+        greenhouse: "🌿 Gewächshaus", watchdog: "Heizungs-Watchdog", heatingEnergy: "Heizenergie heute",
         rainToday: "🌧️ Niederschlag (Heute)", rainYesterday: "Regen Gestern", meteoStatus: "Meteo-Status",
         irrigationToday: "💦 Gartenberegnung", irrigationYesterday: "Gestern", circuitState: "Ventil-Status",
         sunshineToday: "⏱️ Sonnenscheindauer (Heute)", sensorType: "Sensor-Typ", optical: "Optisch",
@@ -30,14 +30,14 @@ const trans = {
         ttRainT: "Gesamtniederschlag heute", ttRainY: "Gesamtniederschlag gestern",
         ttIrrT: "Heutige Beregnungsdauer", ttIrrY: "Gestrige Beregnungsdauer",
         ttSun: "Heutige Sonnenscheindauer", ttWind: "Aktuelle Windgeschwindigkeit",
-        ttHum: "Aktuelle relative Luftfeuchtigkeit", ttEnergy: "Gesamtenergieverbrauch"
+        ttHum: "Aktuelle relative Luftfeuchtigkeit", ttEnergy: "Heutiger Energieverbrauch der Gewächshausheizung"
     },
     en: {
         title: "Burg | Climate Data", head: "Burg - Climate Data", live: "Live Operations Center",
         init: "INITIALIZING...", loading: "LOADING...", outdoor: "☀️ Outdoor Temperature",
         sysAvg: "System Average", brightness: "Brightness", facades: "🏛️ House Facades",
         north: "North Facade", south: "South Facade", east: "East Facade", west: "West Facade",
-        greenhouse: "🌿 Greenhouse", watchdog: "Heating Watchdog", heatingEnergy: "Heating Energy",
+        greenhouse: "🌿 Greenhouse", watchdog: "Heating Watchdog", heatingEnergy: "Heating Energy Today",
         rainToday: "🌧️ Precipitation (Today)", rainYesterday: "Rain Yesterday", meteoStatus: "Meteo Status",
         irrigationToday: "💦 Garden Irrigation", irrigationYesterday: "Yesterday", circuitState: "Valve Status",
         sunshineToday: "⏱️ Sunshine Duration (Today)", sensorType: "Sensor Type", optical: "Optical",
@@ -51,14 +51,14 @@ const trans = {
         ttRainT: "Total precipitation today", ttRainY: "Total precipitation yesterday",
         ttIrrT: "Today's irrigation duration", ttIrrY: "Yesterday's irrigation duration",
         ttSun: "Today's sunshine duration", ttWind: "Current wind speed",
-        ttHum: "Current relative humidity", ttEnergy: "Total energy consumption"
+        ttHum: "Current relative humidity", ttEnergy: "Today's greenhouse heating energy consumption"
     },
     it: {
         title: "Burg | Dati Climatici", head: "Burg - Dati Climatici", live: "Centro Operativo Live",
         init: "INIZIALIZZAZIONE...", loading: "CARICAMENTO...", outdoor: "☀️ Temperatura Esterna",
         sysAvg: "Media di Sistema", brightness: "Luminosità", facades: "🏛️ Facciate",
         north: "Facciata Nord", south: "Facciata Sud", east: "Facciata Est", west: "Facciata Ovest",
-        greenhouse: "🌿 Serra", watchdog: "Watchdog Riscaldamento", heatingEnergy: "Energia Riscaldamento",
+        greenhouse: "🌿 Serra", watchdog: "Watchdog Riscaldamento", heatingEnergy: "Energia Riscaldamento Oggi",
         rainToday: "🌧️ Precipitazioni (Oggi)", rainYesterday: "Pioggia Ieri", meteoStatus: "Stato Meteo",
         irrigationToday: "💦 Irrigazione Giardino", irrigationYesterday: "Ieri", circuitState: "Stato Valvola",
         sunshineToday: "⏱️ Durata Sole (Oggi)", sensorType: "Tipo Sensore", optical: "Ottico",
@@ -72,7 +72,7 @@ const trans = {
         ttRainT: "Precipitazioni totali oggi", ttRainY: "Precipitazioni totali ieri",
         ttIrrT: "Durata irrigazione oggi", ttIrrY: "Durata irrigazione ieri",
         ttSun: "Durata sole oggi", ttWind: "Velocità del vento attuale",
-        ttHum: "Umidità relativa attuale", ttEnergy: "Consumo energetico totale"
+        ttHum: "Umidità relativa attuale", ttEnergy: "Consumo energetico odierno del riscaldamento della serra"
     }
 };
 const t = trans[lang];
@@ -372,7 +372,7 @@ const t = trans[lang];
                     watchdogEl.innerText = isActive ? t.on : t.off;
                     watchdogEl.style.color = isActive ? 'var(--text-dim)' : 'var(--accent)';
                     const energyEl = document.getElementById('ws-heater-energy');
-                    const hEnergy = data.greenhouse.heater_energy;
+                    const hEnergy = data.greenhouse.heater_energy_today;
                     energyEl.innerText = (hEnergy != null) ? `${hEnergy.toFixed(2)} kWh` : '--.- kWh';
                 }
                 
