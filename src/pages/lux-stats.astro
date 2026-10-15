@@ -40,7 +40,7 @@ const trans = {
         monthsShort: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
     }
 };
-const t = { ...trans[lang], entities: luxStatsEntityLabels(lang) };
+const t = { ...trans[lang], locale: { de: 'de-DE', en: 'en-GB', it: 'it-IT' }[lang], entities: luxStatsEntityLabels(lang) };
 ---
 <!DOCTYPE html>
 <html lang={lang}>
@@ -95,7 +95,7 @@ const t = { ...trans[lang], entities: luxStatsEntityLabels(lang) };
         const urlParams = new URLSearchParams(window.location.search);
         const entity = urlParams.get('entity_id');
         const entityMap = t.entities;
-        const entityInfo = entityMap[entity] || { name: entity, unit: '' };
+        const entityInfo = entityMap[entity] || { name: '--', unit: '' };
         document.getElementById('sensor-name').innerText = entityInfo.name;
 
         function applyWeatherTone(lux, isRaining) {
@@ -107,14 +107,19 @@ const t = { ...trans[lang], entities: luxStatsEntityLabels(lang) };
             weatherBg.style.filter = filterString;
         }
 
-        fetch('/api/status').then(r => r.json()).then(data => {
+        burgFetchJson('/api/status').then(data => {
             if (data.weather_station) applyWeatherTone(data.weather_station.lux || 0, data.weather_station.is_raining);
-        });
+        }).catch(() => {});
 
-        if(entity) {
-            fetch(`/api/temperature?entity_id=${entity}`)
-            .then(r => r.json())
+        if(entity && Object.hasOwn(entityMap, entity)) {
+            burgFetchJson(`/api/temperature?entity_id=${encodeURIComponent(entity)}`)
             .then(data => {
+                for (const period of ['hourly', 'daily', 'monthly']) {
+                    data[period] = Array.isArray(data[period]) ? data[period].filter(point =>
+                        point && typeof point.mean === 'number' && Number.isFinite(point.mean) &&
+                        Number.isFinite(new Date(point.start).getTime())
+                    ) : [];
+                }
                 document.getElementById('loading').style.display = 'none';
                 if (data.error) {
                     document.getElementById('error').innerText = t.errorPrefix + data.error;
@@ -156,7 +161,7 @@ const t = { ...trans[lang], entities: luxStatsEntityLabels(lang) };
                     let fillD = "";
 
                     points.forEach((point, i) => {
-                        const x = (i / (points.length - 1)) * svgWidth;
+                        const x = (i / Math.max(1, points.length - 1)) * svgWidth;
                         const y = getY(point.mean);
                         if (i === 0) {
                             pathD += `M ${x} ${y} `;
@@ -285,7 +290,7 @@ const t = { ...trans[lang], entities: luxStatsEntityLabels(lang) };
                         
                         let html = `
                             <div class="card col-12" style="margin-bottom: 20px;">
-                                <div class="card-title">${t.monthlyData} (${year} in ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${yMinText} | Max: ${yMaxText}</span></div>
+                                <div class="card-title">${t.monthlyData} (${burgEscapeHtml(year)} in ${cleanUnit}) <span style="float:right; font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--text-dim); text-transform:none;">Min: ${yMinText} | Max: ${yMaxText}</span></div>
                                 <div class="history-chart-grid">
                         `;
 
@@ -341,11 +346,9 @@ const t = { ...trans[lang], entities: luxStatsEntityLabels(lang) };
                     });
                 }, 100);
 
-            }).catch(e => {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('error').innerText = t.errorNet;
-            });
+            }).catch(burgShowDataError);
+        } else {
+            burgShowDataError();
         }
     </script>
 </body>

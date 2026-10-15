@@ -1,130 +1,52 @@
 import type { APIRoute } from 'astro';
-import { env } from "cloudflare:workers";
+import { env } from 'cloudflare:workers';
+import { LEGACY_ENTITY, METRICS } from '../../lib/burg/metrics';
+import { apiError, numberOrNull, record, upstreamTimeout } from '../../lib/burg/http';
 
-const round1 = (value: any) => {
-  if (
-    value === null
-    || value === undefined
-  ) return null;
+const supportedEntities = new Set<string>(Object.values(LEGACY_ENTITY));
+const metricFor = (entityId: string) => Object.values(METRICS)
+  .find((metric) => metric.aliases.some((alias) => alias === entityId));
 
-  const n=Number(value);
-
-  return Number.isFinite(n)
-    ? parseFloat(n.toFixed(1))
-    : null;
-};
-
-const cleanRows = (rows: any) => {
+function cleanRows(rows: unknown, decimals: number) {
   if (!Array.isArray(rows)) return [];
+  return rows.flatMap((value) => {
+    const row = record(value);
+    const mean = numberOrNull(row.mean);
+    if (typeof row.start !== 'string' || !Number.isFinite(Date.parse(row.start)) || mean === null) return [];
+    const round = (value: unknown) => {
+      const number = numberOrNull(value);
+      return number === null ? null : Number(number.toFixed(decimals));
+    };
+    return [{ start: row.start, mean: round(mean), min: round(row.min), max: round(row.max) }];
+  });
+}
 
-  return rows.map((d: any) => ({
-    start: d.start,
-    mean: round1(d.mean),
-    min: round1(d.min),
-    max: round1(d.max)
-  }));
-};
+export const GET: APIRoute = async ({ request }) => {
+  const entityId = new URL(request.url).searchParams.get('entity_id');
+  if (!entityId || !supportedEntities.has(entityId)) return apiError('INVALID_ENTITY', 400);
+  const token = env.HISTORY_API_TOKEN?.trim();
+  if (!token) return apiError('SERVICE_UNAVAILABLE', 503);
 
-export const GET: APIRoute = async ({
-  request
-}) => {
   try {
-    const {
-      HISTORY_API_TOKEN
-    } = env;
-
-    if (!HISTORY_API_TOKEN) {
-      return new Response(
-        JSON.stringify({
-          error: "MISSING_SECRETS"
-        }),
-        {
-          status: 200
-        }
-      );
+    const upstream = new URL('https://mp.gitor.uk/ha-history-api/v1/temperature');
+    upstream.searchParams.set('entity_id', entityId);
+    const response = await fetch(upstream, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: upstreamTimeout(),
+    });
+    if (!response.ok) throw new Error(`History upstream returned ${response.status}`);
+    const data = record(await response.json());
+    if (data.error || !Array.isArray(data.daily) || !Array.isArray(data.monthly) || !Array.isArray(data.hourly)) {
+      throw new Error('Invalid history response');
     }
-
-    const url=new URL(request.url);
-
-    const entityId=
-      url.searchParams.get(
-        'entity_id'
-      );
-
-    if (!entityId) {
-      return new Response(
-        JSON.stringify({
-          error: "Missing entity_id"
-        }),
-        {
-          status: 400
-        }
-      );
-    }
-
-    const upstream=new URL(
-      "https://mp.gitor.uk/history-api/v1/temperature"
-    );
-
-    upstream.searchParams.set(
-      'entity_id',
-      entityId
-    );
-
-    const res=await fetch(
-      upstream.toString(),
-      {
-        headers: {
-          'Authorization':
-            `Bearer ${HISTORY_API_TOKEN.trim()}`
-        }
-      }
-    );
-
-    if (!res.ok) {
-      throw new Error(
-        `HISTORY_HTTP_${res.status}`
-      );
-    }
-
-    const data:any=
-      await res.json();
-
-    return new Response(
-      JSON.stringify({
-        entity:
-          data.entity
-          ?? entityId,
-
-        daily:
-          cleanRows(data.daily),
-
-        monthly:
-          cleanRows(data.monthly),
-
-        hourly:
-          cleanRows(data.hourly)
-      }),
-      {
-        headers: {
-          'Content-Type':
-            'application/json',
-
-          'Cache-Control':
-            'public, max-age=300'
-        }
-      }
-    );
-
-  } catch (error:any) {
-    return new Response(
-      JSON.stringify({
-        error: "FATAL_CRASH",
-        message: error.message
-      }),
-      {
-        status: 200
-      }
-    );
+    const decimals = metricFor(entityId)?.decimals ?? 1;
+    return Response.json({
+      entity: entityId,
+      daily: cleanRows(data.daily, decimals),
+      monthly: cleanRows(data.monthly, decimals),
+      hourly: cleanRows(data.hourly, decimals),
+    }, { headers: { 'Cache-Control': 'public, max-age=300' } });
+  } catch {
+    return apiError('HISTORY_UNAVAILABLE', 502);
   }
 };

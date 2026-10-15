@@ -44,9 +44,10 @@ const hasActions =
     hasActions ? (
       <slot name="actions" />
     ) : (
-      <div class="status-badge">
+      <div class="status-badge" role="status" aria-live="polite">
         <div
           id="status-indicator"
+          aria-hidden="true"
           class:list={[
             "status-dot",
             {

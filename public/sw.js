@@ -1,41 +1,17 @@
-const CACHE_NAME = 'burg-v1';
-
-// 1. Install and activate immediately
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
+const CACHE_NAME = 'burg-v2';
+const OFFLINE_URL = '/offline.html';
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.add(OFFLINE_URL)).then(() => self.skipWaiting()));
 });
-
-self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
-    
-    // Clean up old caches if you ever change CACHE_NAME
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
-    );
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(names => Promise.all(
+    names.filter(name => name.startsWith('burg-') && name !== CACHE_NAME).map(name => caches.delete(name))
+  )).then(() => self.clients.claim()));
 });
-
-// 2. The crucial Fetch listener (Network-First Strategy)
-self.addEventListener('fetch', (event) => {
-    // Only handle GET requests
-    if (event.request.method !== 'GET') return;
-
-    event.respondWith(
-        fetch(event.request)
-            .then((networkResponse) => {
-                // If the network fetch is successful, return the fresh live data
-                return networkResponse;
-            })
-            .catch(() => {
-                // ONLY if the network fails (offline), try to serve a cached version
-                return caches.match(event.request);
-            })
-    );
+self.addEventListener('fetch', event => {
+  // Never cache live sensor data, API responses, or camera images.
+  if (event.request.method !== 'GET' || event.request.mode !== 'navigate' || new URL(event.request.url).origin !== self.location.origin) return;
+  event.respondWith(fetch(event.request).catch(async () =>
+    (await caches.open(CACHE_NAME)).match(OFFLINE_URL).then(response => response || Response.error())
+  ));
 });

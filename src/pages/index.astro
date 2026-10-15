@@ -75,7 +75,7 @@ const trans = {
         ttHum: "Umidità relativa attuale", ttEnergy: "Consumo energetico odierno del riscaldamento della serra"
     }
 };
-const t = trans[lang];
+const t = { ...trans[lang], locale: { de: 'de-DE', en: 'en-GB', it: 'it-IT' }[lang] };
 ---
 <!DOCTYPE html>
 <html lang={lang}>
@@ -100,19 +100,19 @@ const t = trans[lang];
         
         <div class="bento-grid">
             
-            <div class="card col-4 clickable" onclick="openPanoramaStats()">
+            <a class="card col-4 clickable" href="/panorama" target="_blank" rel="noopener">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem;">
                     <div class="card-title" style="margin-bottom: 0;">{t.panorama}</div>
                     <div id="panorama-time" style="font-size: 0.65rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;"></div>
                 </div>
                 <div id="panorama-container" style="flex: 1; width: 100%; border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; min-height: 120px; position: relative;">
-                    <img id="latest-panorama-img" style="width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0;">
+                    <img id="latest-panorama-img" alt={t.panorama} style="width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0;">
                     <span id="panorama-loading" style="font-size: 0.7rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; z-index: 1;">{t.loading}</span>
                 </div>
-            </div>
+            </a>
             
             <div class="card col-4" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
-                <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_temperature')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
+                <a class="clickable" href="/temp-stats?entity_id=sensor.weather_sensor_plus_garten_temperature" target="_blank" rel="noopener" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
                     <div class="card-title">{t.outdoor}</div>
                     <div class="value-large" id="ws-temp" title={t.ttCurr} style="margin-bottom: 0;">--.-<span class="value-unit">°C</span></div>
                     <div style="display: flex; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700; margin-bottom: auto; margin-top: 0.25rem;">
@@ -120,8 +120,8 @@ const t = trans[lang];
                         <div style="color: var(--text-muted); font-size: 1rem; align-self: center;">|</div>
                         <div style="flex: 1; text-align: center; color: #ef4444;" id="ws-temp-max" title={t.ttMax}>--.-°</div>
                     </div>
-                </div>
-                <div class="clickable" onclick="openLuxStats()" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
+                </a>
+                <a class="clickable" href="/lux-stats?entity_id=sensor.weather_sensor_plus_garten_illumination" target="_blank" rel="noopener" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
                     <div class="sub-metrics" style="margin: auto 0; border-top: none; padding-top: 0;">
                         <div>
                             <div class="sub-label">{t.sysAvg}</div>
@@ -132,33 +132,33 @@ const t = trans[lang];
                             <div class="sub-value" id="ws-lux" title={t.ttLux}>-- lx</div>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
 
             <div class="card col-4">
                 <div class="card-title" style="margin-bottom: 1.25rem;">{t.facades}</div>
                 <div style="margin: auto 0; width: 100%;">
-                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_north_temperature')">
+                    <a class="facade-row clickable" href="/temp-stats?entity_id=sensor.temperature_and_humidity_sensor_outdoor_north_temperature" target="_blank" rel="noopener">
                         <span class="facade-name">{t.north}</span>
                         <span class="facade-val" id="facade-north" title={t.ttCurr}>--.-°C</span>
-                    </div>
-                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature')">
+                    </a>
+                    <a class="facade-row clickable" href="/temp-stats?entity_id=sensor.temperature_and_humidity_sensor_outdoor_balkon_temperature" target="_blank" rel="noopener">
                         <span class="facade-name">{t.south}</span>
                         <span class="facade-val" id="facade-south" title={t.ttCurr}>--.-°C</span>
-                    </div>
-                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature')">
+                    </a>
+                    <a class="facade-row clickable" href="/temp-stats?entity_id=sensor.temperature_and_humidity_sensor_outdoor_house_east_temperature" target="_blank" rel="noopener">
                         <span class="facade-name">{t.east}</span>
                         <span class="facade-val" id="facade-east" title={t.ttCurr}>--.-°C</span>
-                    </div>
-                    <div class="facade-row clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_west_temperature')">
+                    </a>
+                    <a class="facade-row clickable" href="/temp-stats?entity_id=sensor.temperature_and_humidity_sensor_outdoor_west_temperature" target="_blank" rel="noopener">
                         <span class="facade-name">{t.west}</span>
                         <span class="facade-val" id="facade-west" title={t.ttCurr}>--.-°C</span>
-                    </div>
+                    </a>
                 </div>
             </div>
 
             <div class="card col-4" style="background: radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.04), transparent 60%), var(--card-bg); padding: 0; display: flex; flex-direction: column; overflow: hidden;">
-                <div class="clickable" onclick="openTempStats('sensor.temperature_and_humidity_sensor_outdoor_garten_temperature')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
+                <a class="clickable" href="/temp-stats?entity_id=sensor.temperature_and_humidity_sensor_outdoor_garten_temperature" target="_blank" rel="noopener" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
                     <div class="card-title" style="color: var(--success);">{t.greenhouse}</div>
                     <div class="value-large" id="facade-greenhouse" title={t.ttCurr} style="margin-bottom: 0;">--.-<span class="value-unit" style="color: var(--success);">°C</span></div>
                     <div style="display: flex; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 700; margin-bottom: auto; margin-top: 0.25rem;">
@@ -166,8 +166,8 @@ const t = trans[lang];
                         <div style="color: var(--text-muted); font-size: 1rem; align-self: center;">|</div>
                         <div style="flex: 1; text-align: center; color: #ef4444;" id="gh-temp-max" title={t.ttMax}>--.-°</div>
                     </div>
-                </div>
-                <div class="clickable" onclick="openTempStats('sensor.switching_and_measuring_cable_outdoor_energy_counter')" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
+                </a>
+                <a class="clickable" href="/temp-stats?entity_id=sensor.switching_and_measuring_cable_outdoor_energy_counter" target="_blank" rel="noopener" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
                     <div class="sub-metrics" style="border-color: rgba(16, 185, 129, 0.1); margin: auto 0; border-top: none; padding-top: 0;">
                         <div>
                             <div class="sub-label">{t.watchdog}</div>
@@ -178,10 +178,10 @@ const t = trans[lang];
                             <div class="sub-value" id="ws-heater-energy" title={t.ttEnergy}>--.- kWh</div>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
 
-            <div class="card col-4 clickable" onclick="openRainStats()">
+            <a class="card col-4 clickable" href="/rain-stats" target="_blank" rel="noopener">
                 <div class="card-title">{t.rainToday}</div>
                 <div class="value-large" id="ws-rain-today" title={t.ttRainT}>--.-<span class="value-unit">mm</span></div>
                 <div class="sub-metrics">
@@ -194,9 +194,9 @@ const t = trans[lang];
                         <div class="sub-value" id="ws-meteo-status">--</div>
                     </div>
                 </div>
-            </div>
+            </a>
             
-            <div class="card col-4 clickable" onclick="openIrrigationStats()">
+            <a class="card col-4 clickable" href="/irrigation-stats" target="_blank" rel="noopener">
                 <div class="card-title">{t.irrigationToday}</div>
                 <div class="value-large" id="ws-irrigation-today" title={t.ttIrrT}>--.-<span class="value-unit">m</span></div>
                 <div class="sub-metrics">
@@ -209,9 +209,9 @@ const t = trans[lang];
                         <div class="sub-value" id="ws-irrigation-state">--</div>
                     </div>
                 </div>
-            </div>
+            </a>
 
-            <div class="card col-4 clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_total_sunshine_duration')">
+            <a class="card col-4 clickable" href="/temp-stats?entity_id=sensor.weather_sensor_plus_garten_total_sunshine_duration" target="_blank" rel="noopener">
                 <div class="card-title">{t.sunshineToday}</div>
                 <div class="value-large" id="ws-sunshine" title={t.ttSun}>--<span class="value-unit">h</span> --<span class="value-unit">m</span></div>
                 <div class="sub-metrics">
@@ -224,9 +224,9 @@ const t = trans[lang];
                         <div class="sub-value">> 120 W/m²</div>
                     </div>
                 </div>
-            </div>
+            </a>
 
-            <div class="card col-4 clickable" onclick="openAcuteRainStats()">
+            <a class="card col-4 clickable" href="/acute_rain-stats" target="_blank" rel="noopener">
                 <div class="card-title">{t.stateVectors}</div>
                 <div style="margin: auto 0; width: 100%;">
                     <div class="facade-row">
@@ -238,14 +238,14 @@ const t = trans[lang];
                         <span class="facade-val" id="ws-flag-storm">--</span>
                     </div>
                 </div>
-            </div>
+            </a>
 
             <div class="card col-4" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
-                <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_wind_speed')" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
+                <a class="clickable" href="/temp-stats?entity_id=sensor.weather_sensor_plus_garten_wind_speed" target="_blank" rel="noopener" style="flex: 1; padding: 1.75rem; padding-bottom: 1.25rem; display: flex; flex-direction: column;">
                     <div class="card-title">{t.windSpeed}</div>
                     <div class="value-large" id="ws-wind" title={t.ttWind}>--.-<span class="value-unit">km/h</span></div>
-                </div>
-                <div class="clickable" onclick="openTempStats('sensor.weather_sensor_plus_garten_humidity')" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
+                </a>
+                <a class="clickable" href="/temp-stats?entity_id=sensor.weather_sensor_plus_garten_humidity" target="_blank" rel="noopener" style="padding: 1.25rem 1.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); display: flex; flex-direction: column; flex: 1;">
                     <div class="sub-metrics" style="margin: auto 0; border-top: none; padding-top: 0;">
                         <div>
                             <div class="sub-label">{t.humidity}</div>
@@ -253,13 +253,13 @@ const t = trans[lang];
                         </div>
                         <div></div>
                     </div>
-                </div>
+                </a>
             </div>
 
         </div>
 
         <footer>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; width: 100%; color: black;">burg@gitor.uk</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; width: 100%; color: var(--text-dim);">burg@gitor.uk</div>
         </footer>
     </div>
 
@@ -281,7 +281,7 @@ const t = trans[lang];
 
         function formatSunshine(minutesTotal) {
             const h = Math.floor(minutesTotal / 60);
-            const m = minutesTotal % 60;
+            const m = Math.floor(minutesTotal % 60);
             return `${h}<span class="value-unit">h</span> ${m}<span class="value-unit">m</span>`;
         }
 
@@ -298,10 +298,10 @@ const t = trans[lang];
         async function fetchLatestCameras() {
             try {
                 // FIXED: Added prefix to fetch URL to bypass Cloudflare's 1000-item limit clutter!
-                const res = await fetch(`${workerUrl}/history?prefix=mountain_`);
+                const res = await fetch(`${workerUrl}/history?prefix=mountain_`, { signal: AbortSignal.timeout(15000) });
                 if (!res.ok) throw new Error("Worker returned " + res.status);
                 const files = await res.json();
-                const mountainFiles = files.filter(f => f.name.startsWith('mountain_'));
+                const mountainFiles = burgValidImages(files, 'mountain_');
                 if (mountainFiles.length > 0) {
                     const img = document.getElementById('latest-panorama-img');
                     const params = "width=600,quality=75,format=auto";
@@ -310,9 +310,9 @@ const t = trans[lang];
                     const newestFile = mountainFiles[0];
                     img.src = `${workerUrl}/cdn-cgi/image/${params}/${newestFile.name}`;
                     
-                    img.style.display = 'block';
-                    document.getElementById('panorama-loading').style.display = 'none';
-                    document.getElementById('panorama-time').innerText = new Date(newestFile.time).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    img.onload = () => { img.style.display = 'block'; document.getElementById('panorama-loading').style.display = 'none'; };
+                    img.onerror = () => { img.style.display = 'none'; document.getElementById('panorama-loading').textContent = '--'; document.getElementById('panorama-loading').style.display = 'block'; };
+                    document.getElementById('panorama-time').innerText = new Date(newestFile.time).toLocaleString(t.locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 } else {
                     document.getElementById('panorama-loading').innerText = "--";
                     document.getElementById('panorama-time').innerText = "";
@@ -325,34 +325,33 @@ const t = trans[lang];
 
         async function fetchStatus() {
             try {
-                const res = await fetch('/api/status');
-                const data = await res.json();
-                if (data.error) throw new Error(data.error);
+                const data = await burgFetchJson('/api/status');
                 
-                lastUpdateStr = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                lastUpdateStr = new Date().toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' });
                 statusDot.className = "status-dot online";
                 statusText.innerText = t.online;
                 let tempsForAvg = [];
                 if (data.weather_station) {
                     const ws = data.weather_station;
                     applyWeatherTone(ws.lux || 0, ws.is_raining);
+                    document.getElementById('ws-temp').innerHTML = '--.-<span class="value-unit">°C</span>';
                     if (ws.temp != null) {
                         tempsForAvg.push(ws.temp);
                         document.getElementById('ws-temp').innerHTML = `${ws.temp.toFixed(1)}<span class="value-unit">°C</span>`;
                     }
-                    if (ws.temp_min != null) document.getElementById('ws-temp-min').innerText = `${ws.temp_min.toFixed(1)}°`;
-                    if (ws.temp_max != null) document.getElementById('ws-temp-max').innerText = `${ws.temp_max.toFixed(1)}°`;
+                    document.getElementById('ws-temp-min').innerText = ws.temp_min != null ? `${ws.temp_min.toFixed(1)}°` : '--.-°';
+                    document.getElementById('ws-temp-max').innerText = ws.temp_max != null ? `${ws.temp_max.toFixed(1)}°` : '--.-°';
                     
                     document.getElementById('ws-hum').innerText = ws.hum != null ? `${Math.round(ws.hum)} %` : '-- %';
                     document.getElementById('ws-wind').innerHTML = ws.wind != null ? `${ws.wind.toFixed(1)}<span class="value-unit">km/h</span>` : '--.-';
                     document.getElementById('ws-rain-today').innerHTML = ws.rain_today != null ? `${ws.rain_today.toFixed(1)}<span class="value-unit">mm</span>` : '--.-';
                     const rY = ws.rain_yesterday;
                     document.getElementById('ws-rain-yesterday').innerText = (rY != null) ? `${rY.toFixed(1)} mm` : '--.- mm';
-                    document.getElementById('ws-meteo-status').innerText = ws.is_stormy ? t.storm : (ws.is_raining ? t.rain : t.clear);
+                    document.getElementById('ws-meteo-status').innerText = ws.is_stormy === true ? t.storm : (ws.is_raining === true ? t.rain : (ws.is_raining === false && ws.is_stormy === false ? t.clear : '--'));
                     document.getElementById('ws-sunshine').innerHTML = ws.sunshine_duration != null ? formatSunshine(ws.sunshine_duration) : '--h --m';
                     document.getElementById('ws-lux').innerText = ws.lux != null ? `${Math.round(ws.lux)} lx` : '-- lx';
-                    document.getElementById('ws-flag-raining').innerText = ws.is_raining ? t.yes : t.no;
-                    document.getElementById('ws-flag-storm').innerText = ws.is_stormy ? t.yes : t.no;
+                    document.getElementById('ws-flag-raining').innerText = ws.is_raining == null ? '--' : (ws.is_raining ? t.yes : t.no);
+                    document.getElementById('ws-flag-storm').innerText = ws.is_stormy == null ? '--' : (ws.is_stormy ? t.yes : t.no);
                 }
                 
                 ['north', 'south', 'east', 'west'].forEach(dir => {
@@ -364,13 +363,13 @@ const t = trans[lang];
                     const gT = data.greenhouse.temp;
                     document.getElementById('facade-greenhouse').innerHTML = (gT != null) ? `${gT.toFixed(1)}<span class="value-unit" style="color: var(--success);">°C</span>` : '--.-°C';
                     
-                    if (data.greenhouse.temp_min != null) document.getElementById('gh-temp-min').innerText = `${data.greenhouse.temp_min.toFixed(1)}°`;
-                    if (data.greenhouse.temp_max != null) document.getElementById('gh-temp-max').innerText = `${data.greenhouse.temp_max.toFixed(1)}°`;
+                    document.getElementById('gh-temp-min').innerText = data.greenhouse.temp_min != null ? `${data.greenhouse.temp_min.toFixed(1)}°` : '--.-°';
+                    document.getElementById('gh-temp-max').innerText = data.greenhouse.temp_max != null ? `${data.greenhouse.temp_max.toFixed(1)}°` : '--.-°';
                     
                     const watchdogEl = document.getElementById('ws-watchdog');
                     const isActive = data.greenhouse.watchdog_active;
-                    watchdogEl.innerText = isActive ? t.on : t.off;
-                    watchdogEl.style.color = isActive ? 'var(--text-dim)' : 'var(--accent)';
+                    watchdogEl.innerText = isActive == null ? '--' : (isActive ? t.on : t.off);
+                    watchdogEl.style.color = isActive !== false ? 'var(--text-dim)' : 'var(--accent)';
                     const energyEl = document.getElementById('ws-heater-energy');
                     const hEnergy = data.greenhouse.heater_energy_today;
                     energyEl.innerText = (hEnergy != null) ? `${hEnergy.toFixed(2)} kWh` : '--.- kWh';
@@ -381,10 +380,11 @@ const t = trans[lang];
                     document.getElementById('ws-irrigation-today').innerHTML = irr.today != null ? `${Math.floor(irr.today * 60)}<span class="value-unit">m</span>` : '--<span class="value-unit">m</span>';
                     document.getElementById('ws-irrigation-yesterday').innerText = irr.yesterday != null ? `${Math.floor(irr.yesterday * 60)} m` : '-- m';
                     const stateEl = document.getElementById('ws-irrigation-state');
-                    stateEl.innerText = irr.is_active ? t.on : t.off;
+                    stateEl.innerText = irr.is_active == null ? '--' : (irr.is_active ? t.on : t.off);
                     stateEl.style.color = irr.is_active ? 'var(--success)' : 'var(--text-dim)';
                 }
                 
+                document.getElementById('computed-avg').innerText = '--.- °C';
                 if (tempsForAvg.length > 0) {
                     const avg = tempsForAvg.reduce((a, b) => a + b, 0) / tempsForAvg.length;
                     document.getElementById('computed-avg').innerText = `${avg.toFixed(1)} °C`;
@@ -392,11 +392,12 @@ const t = trans[lang];
             } catch (e) { 
                 statusDot.className = "status-dot";
                 statusText.innerText = `${t.error} (${lastUpdateStr || '--:--'})`;
+                document.getElementById('ws-watchdog').textContent = '--';
             }
         }
         setInterval(() => {
             const d = new Date();
-            document.getElementById('system-time').innerText = d.toLocaleTimeString('de-DE', { hour12: false }) + " // UTC" + (d.getTimezoneOffset() / -60 >= 0 ? "+" : "") + (d.getTimezoneOffset() / -60);
+            document.getElementById('system-time').innerText = d.toLocaleTimeString(t.locale, { hour12: false }) + " // UTC" + (d.getTimezoneOffset() / -60 >= 0 ? "+" : "") + (d.getTimezoneOffset() / -60);
         }, 1000);
         fetchStatus();
         fetchLatestCameras();

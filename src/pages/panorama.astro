@@ -33,7 +33,7 @@ const trans = {
     }
 };
 
-const t = trans[lang];
+const t = { ...trans[lang], loadError: { de: 'Fehler beim Laden.', en: 'Unable to load images.', it: 'Impossibile caricare le immagini.' }[lang], locale: { de: 'de-DE', en: 'en-GB', it: 'it-IT' }[lang] };
 ---
 <!DOCTYPE html>
 <html lang={lang}>
@@ -54,11 +54,11 @@ const t = trans[lang];
                     <div class="status-badge">
                         <div
                             id="status-indicator"
-                            class="status-dot online"
+                            class="status-dot"
                         ></div>
 
                         <span id="status-text">
-                            {t.online}
+                            {t.init}
                         </span>
                     </div>
 
@@ -75,16 +75,16 @@ const t = trans[lang];
         </div>
     </div>
 
-    <div id="fullscreen-overlay" onclick="this.style.display='none'">
-        <div class="close-overlay">✕</div>
-        <img id="overlay-img" src="" alt="Fullscreen view">
-    </div>
+    <dialog id="fullscreen-overlay" aria-label={t.head} onclick="if(event.target === this) this.close()">
+        <button type="button" class="dialog-close" aria-label={t.back} onclick="this.closest('dialog').close()">✕</button>
+        <img id="overlay-img" alt={t.head}>
+    </dialog>
 
     <script is:inline set:html={`const t = ${JSON.stringify(t)};`}></script>
     <script is:inline>
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                document.getElementById('fullscreen-overlay').style.display = 'none';
+                document.getElementById('fullscreen-overlay').close();
             }
         });
         
@@ -99,22 +99,22 @@ const t = trans[lang];
             weatherBg.style.filter = filterString;
         }
 
-        fetch('/api/status').then(r => r.json()).then(data => {
+        burgFetchJson('/api/status').then(data => {
             if (data.weather_station) applyWeatherTone(data.weather_station.lux || 0, data.weather_station.is_raining);
-        });
+        }).catch(() => {});
 
         // FIXED: Restored correct endpoint for fetching images!
         const workerUrl = "https://burg-upload-proxy.csaa6335.workers.dev";
         
         function showFullscreen(url) {
             document.getElementById('overlay-img').src = url;
-            document.getElementById('fullscreen-overlay').style.display = 'flex';
+            document.getElementById('fullscreen-overlay').showModal();
         }
 
         async function deleteImage(filename) {
             if (!confirm(`${t.confirmDel}\n\n${filename}`)) return;
             try {
-                const response = await fetch(`/api/delete-image?file=${filename}`, {
+                const response = await fetch(`/api/delete-image?file=${encodeURIComponent(filename)}`, {
                     method: 'DELETE'
                 });
                 if (response.ok) location.reload();
@@ -144,6 +144,7 @@ const t = trans[lang];
         async function shareImage(url, filename) {
             try {
                 const response = await fetch(url);
+                if (!response.ok) throw new Error('Image unavailable');
                 const blob = await response.blob();
                 const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
                 
@@ -156,6 +157,7 @@ const t = trans[lang];
                     alert(t.errShare);
                 }
             } catch (error) {
+                if (error.name === 'AbortError') return;
                 console.error("Error sharing image:", error);
                 alert(t.errShare);
             }
@@ -163,10 +165,12 @@ const t = trans[lang];
 
         async function loadHistory() {
             try {
-                const res = await fetch(`${workerUrl}/history?prefix=mountain_`);
+                const res = await fetch(`${workerUrl}/history?prefix=mountain_`, { signal: AbortSignal.timeout(15000) });
                 if (!res.ok) throw new Error("Worker Error");
-                allFiles = await res.json();
+                allFiles = burgValidImages(await res.json(), 'mountain_');
                 const gallery = document.getElementById('history-gallery');
+                document.getElementById('status-indicator').className = 'status-dot online';
+                document.getElementById('status-text').textContent = t.online;
                 if (allFiles.length === 0) {
                     gallery.innerHTML = `<p style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">--</p>`;
                     return;
@@ -174,8 +178,10 @@ const t = trans[lang];
                 
                 gallery.innerHTML = '';
                 renderNextImages();
-            } catch (e) { 
-                document.getElementById('history-gallery').innerHTML = `<p style="color: #ef4444; font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">Fehler beim Laden.</p>`;
+            } catch (e) {
+                document.getElementById('status-indicator').className = 'status-dot';
+                document.getElementById('status-text').textContent = t.loadError;
+                document.getElementById('history-gallery').innerHTML = `<p style="color: #ef4444; font-family: 'JetBrains Mono', monospace; padding-left: 1rem;">${t.loadError}</p>`;
             }
         }
 
@@ -188,7 +194,7 @@ const t = trans[lang];
 
             // FIXED: Hide seconds via strict 'hour' and 'minute' options. Restored missing Share buttons.
             const html = nextFiles.map(file => {
-                const dateStr = new Date(file.time).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const dateStr = new Date(file.time).toLocaleString(t.locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 return `
                 <div class="card col-12" style="margin-bottom: 1.5rem; padding: 1.5rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
@@ -198,7 +204,7 @@ const t = trans[lang];
                             <button class="delete-btn" onclick="deleteImage('${file.name}')">${t.delete}</button>
                         </div>
                     </div>
-                    <img src="${workerUrl}/${file.name}" onclick="event.stopPropagation(); showFullscreen('${workerUrl}/${file.name}')" style="width: 100%; border-radius: 8px; display: block; cursor: zoom-in;" loading="lazy">
+                    <button type="button" class="camera-image" aria-label="${burgEscapeHtml(t.head)} — ${dateStr}" onclick="showFullscreen('${workerUrl}/${file.name}')"><img src="${workerUrl}/${file.name}" alt="${burgEscapeHtml(t.head)} — ${dateStr}" style="width: 100%; border-radius: 8px; display: block;" loading="lazy" decoding="async"></button>
                 </div>
                 `;
             }).join('');

@@ -32,8 +32,8 @@ export interface WeatherStationStatus {
   rain_yesterday: NullableNumber;
   sunshine_duration: NullableNumber;
 
-  is_raining: boolean;
-  is_stormy: boolean;
+  is_raining: boolean | null;
+  is_stormy: boolean | null;
 }
 
 
@@ -61,14 +61,15 @@ export interface BurgStatusResponse {
     temp: NullableNumber;
     temp_min: NullableNumber;
     temp_max: NullableNumber;
-    watchdog_active: boolean;
+    watchdog_active: boolean | null;
     heater_energy: NullableNumber;
+    heater_energy_today: NullableNumber;
   };
 
   irrigation: {
     today: NullableNumber;
     yesterday: NullableNumber;
-    is_active: boolean;
+    is_active: boolean | null;
   };
 
   daily_rain_14d:

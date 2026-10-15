@@ -33,7 +33,7 @@ const trans = {
         monthsFull: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
     }
 };
-const t = trans[lang];
+const t = { ...trans[lang], locale: { de: 'de-DE', en: 'en-GB', it: 'it-IT' }[lang] };
 ---
 <!DOCTYPE html>
 <html lang={lang}>
@@ -84,8 +84,7 @@ const t = trans[lang];
             weatherBg.style.filter = filterString;
         }
 
-        fetch('/api/status')
-            .then(res => res.json())
+        burgFetchJson('/api/status')
             .then(data => {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
@@ -111,7 +110,7 @@ const t = trans[lang];
                                     ${barHtml}
                                 </div>
                                 <div class="chart-value">${minutes.toFixed(0)}</div>
-                                <div class="chart-label">${day.date}</div>
+                                <div class="chart-label">${burgEscapeHtml(day.date)}</div>
                             </div>
                         `;
                     });
@@ -126,12 +125,12 @@ const t = trans[lang];
                             <h2 class="section-title">${t.histRain}</h2>
                             <div class="bento-grid">
                                 <div class="card col-12">
-                                    <div class="card-title">${t.monthlyDist} (${year} in h)</div>
-                                    <div class="history-chart-grid" id="chart-${year}"></div>
+                                    <div class="card-title">${t.monthlyDist} (${burgEscapeHtml(year)} in h)</div>
+                                    <div class="history-chart-grid" id="chart-${burgEscapeHtml(year)}"></div>
                                 </div>
                             </div>
                         `;
-                        const target = document.getElementById(`chart-${year}`);
+                        const target = document.getElementById(`chart-${burgEscapeHtml(year)}`);
                         const months = t.monthsFull;
                         const yearData = data.historical_irr[year];
                         const maxM = Math.max(...Object.values(yearData).map(v => v || 0), 1);
@@ -182,11 +181,11 @@ const t = trans[lang];
                         }
                     });
                 }, 100);
-            });
+            }).catch(burgShowDataError);
 
         setInterval(() => {
             const d = new Date();
-            document.getElementById('system-time').innerText = d.toLocaleTimeString('de-DE', { hour12: false }) + " // UTC" + (d.getTimezoneOffset() / -60 >= 0 ? "+" : "") + (d.getTimezoneOffset() / -60);
+            document.getElementById('system-time').innerText = d.toLocaleTimeString(t.locale, { hour12: false }) + " // UTC" + (d.getTimezoneOffset() / -60 >= 0 ? "+" : "") + (d.getTimezoneOffset() / -60);
         }, 1000);
     </script>
 </body>

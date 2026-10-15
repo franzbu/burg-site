@@ -14,6 +14,25 @@
   --success: #10b981;
 
   --text-main: #f3f4f6;
-  --text-muted: #4b5563;
+  --text-muted: #a1a1aa;
   --text-dim: #9ca3af;
 }
+
+*, *::before, *::after { box-sizing: border-box; }
+body .card-title, body .sub-label, body .chart-label, body .value-unit { color: #a1a1aa; }
+body a.clickable, body a.floating-back { color: inherit; text-decoration: none; }
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--accent); outline-offset: 4px;
+}
+body #error { color: #fca5a5; line-height: 1.6; }
+body .status-badge { max-width: 100%; overflow-wrap: anywhere; }
+body .container { min-width: 0; }
+body .chart-bar { max-height: 100%; }
+body .dialog-close { position: absolute; top: 1rem; right: 1rem; color: white; background: #171717; border: 1px solid #9ca3af; border-radius: 50%; width: 44px; height: 44px; cursor: pointer; font-size: 1.25rem; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+body .camera-image { display: block; width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+body dialog#fullscreen-overlay[open] { display: flex; width: 100vw; max-width: none; height: 100vh; max-height: none; border: 0; padding: 1rem; margin: 0; }
+body dialog::backdrop { background: rgba(0,0,0,.85); }

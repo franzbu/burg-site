@@ -1,4 +1,6 @@
 ---
+import { resolveBurgLanguage } from '../../lib/burg/locale';
+
 interface Props {
   title: string;
   manifest?: boolean;
@@ -14,6 +16,17 @@ const {
   appleTouchIcon = "svg",
 } = Astro.props;
 
+const lang = resolveBurgLanguage(Astro.request.headers.get('accept-language'));
+const descriptions = {
+  de: 'Aktuelle Wetterdaten, Gewächshauswerte und Kamerabilder der Burg.',
+  en: 'Live weather, greenhouse readings, and camera images from Burg.',
+  it: 'Dati meteo, valori della serra e immagini delle telecamere di Burg.',
+};
+const errors = {
+  de: 'Daten können nicht geladen werden. Bitte erneut versuchen.',
+  en: 'Unable to load data. Please try again.',
+  it: 'Impossibile caricare i dati. Riprova.',
+};
 const iconSvg =
   "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ca9f1b'><path d='M18 20V10h2v10h-2M4 20V10h2v10H4m9-10v2h-2v-2h2m1-8l2 2v2h-2V2l-2 2-2-2v2H7V4L5 2v4h14V2l-2 2zM21 9h-2V7h-2v2h-2V7h-2v2h-2V7H9v2H7V7H5v2H3v12h18V9z'/></svg>";
 
@@ -28,6 +41,10 @@ const appleSvg =
 />
 
 <title>{title}</title>
+<meta name="description" content={descriptions[lang]} />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
 <link
   href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
@@ -42,11 +59,7 @@ const appleSvg =
 
 <link
   rel="apple-touch-icon"
-  href={
-    appleTouchIcon === "png"
-      ? "/icon-192.png"
-      : appleSvg
-  }
+  href="/icon-192.png"
 />
 
 {
@@ -62,3 +75,43 @@ const appleSvg =
   name="theme-color"
   content="#030303"
 />
+
+<script is:inline define:vars={{ dataErrorMessage: errors[lang] }}>
+  window.burgFetchJson = async function burgFetchJson(url) {
+    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    const data = await response.json();
+    if (!response.ok || data?.error) throw new Error('Data unavailable');
+    return data;
+  }
+  window.burgShowDataError = function burgShowDataError() {
+    const loading = document.getElementById('loading');
+    const content = document.getElementById('content');
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'none';
+    const status = document.getElementById('status-text');
+    const dot = document.getElementById('status-indicator');
+    if (status) status.textContent = dataErrorMessage;
+    if (dot) dot.className = 'status-dot';
+    let error = document.getElementById('error');
+    if (!error) {
+      error = document.createElement('p');
+      error.id = 'error';
+      (document.querySelector('.container') || document.body).append(error);
+    }
+    error.setAttribute('role', 'alert');
+    error.textContent = dataErrorMessage;
+    error.style.display = 'block';
+  }
+  window.burgEscapeHtml = function burgEscapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[character]);
+  }
+  window.burgValidImages = function burgValidImages(files, prefix) {
+    return Array.isArray(files) ? files.filter(file =>
+      typeof file?.name === 'string' && file.name.startsWith(prefix) &&
+      /^(mountain_|entrance_)[A-Za-z0-9_.-]+\.(webp|jpe?g|png)$/i.test(file.name) &&
+      Number.isFinite(new Date(file.time).getTime())
+    ).sort((a, b) => new Date(b.time) - new Date(a.time)) : [];
+  }
+</script>
